@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import type { Direction } from "./lib/risk";
-import { money, pct } from "./lib/format";
+import { price, pct } from "./lib/format";
 
 interface EntryLine {
   price: number;
@@ -80,7 +80,8 @@ export default function PriceLadder({
     return isLong ? Math.max(p, avg + g) : Math.min(p, avg - g);
   };
 
-  const emit = (kind: Handle, p: number) => {
+  const emit = (kind: Handle, raw: number) => {
+    const p = +raw.toFixed(4);
     if (kind === "stop") onStop(p);
     else if (kind === "entry") onEntry?.(p);
     else onTakeProfit?.(p);
@@ -146,7 +147,7 @@ export default function PriceLadder({
             <div className="border-t border-slate-600" />
             {entries.length <= 4 && (
               <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-slate-400">
-                {money(e.price)}
+                {price(e.price)}
               </span>
             )}
           </div>
@@ -162,7 +163,7 @@ export default function PriceLadder({
           pill="bg-emerald-500 text-white"
           handlers={onTakeProfit ? handlers("tp") : undefined}
         >
-          Alvo {money(takeProfit!)}
+          Alvo {price(takeProfit!)}
         </DragLine>
       )}
 
@@ -175,7 +176,7 @@ export default function PriceLadder({
         pill="bg-sky-500 text-white"
         handlers={onEntry ? handlers("entry") : undefined}
       >
-        {multipleEntries ? "Médio" : "Entrada"} {money(avg)}
+        {multipleEntries ? "Médio" : "Entrada"} {price(avg)}
       </DragLine>
 
       {/* STOP — arrastável */}
@@ -187,7 +188,7 @@ export default function PriceLadder({
         pill="bg-rose-500 text-white"
         handlers={handlers("stop")}
       >
-        Stop {money(stop)} · {pct(stopDistPct)}
+        Stop {price(stop)} · {pct(stopDistPct)}
       </DragLine>
 
       {/* dica de arrastar */}

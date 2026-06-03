@@ -5,7 +5,7 @@ import {
   type Direction,
   type EntryLeg,
 } from "./lib/risk";
-import { money, qty, pct } from "./lib/format";
+import { money, price, qty, pct } from "./lib/format";
 import { useLocalStorage } from "./lib/useLocalStorage";
 import PriceLadder from "./PriceLadder";
 import ScaledOrders, { buildGrid, type GridRow } from "./ScaledOrders";
@@ -67,8 +67,8 @@ export default function App() {
   // Mantém o stop sempre do lado certo do preço médio.
   const ensureStopSide = (a: number, dir: Direction, s: number) => {
     if (!(a > 0)) return s;
-    if (dir === "long" && s >= a) return +(a * 0.98).toFixed(8);
-    if (dir === "short" && s <= a) return +(a * 1.02).toFixed(8);
+    if (dir === "long" && s >= a) return +(a * 0.98).toFixed(4);
+    if (dir === "short" && s <= a) return +(a * 1.02).toFixed(4);
     return s;
   };
   const adjustStop = (a: number, dir: Direction = direction) =>
@@ -76,7 +76,7 @@ export default function App() {
 
   const flipDirection = (dir: Direction) => {
     setDirection(dir);
-    setStop((s) => ensureStopSide(avg, dir, +(2 * avg - s).toFixed(8)));
+    setStop((s) => ensureStopSide(avg, dir, +(2 * avg - s).toFixed(4)));
   };
 
   const editSingleEntry = (price: number) => {
@@ -85,17 +85,17 @@ export default function App() {
   };
 
   // Arrastar a linha de entrada/médio no gráfico.
-  const dragEntry = (price: number) => {
+  const dragEntry = (target: number) => {
     if (!scaled) {
-      editSingleEntry(price);
+      editSingleEntry(target);
       return;
     }
     // escalonado: desloca a grade inteira mantendo os ratios
-    const delta = price - avg;
-    setGridRows(gridRows.map((r) => ({ ...r, price: +(r.price + delta).toFixed(2) })));
-    setGridFrom((f) => +(f + delta).toFixed(2));
-    setGridTo((t) => +(t + delta).toFixed(2));
-    adjustStop(price);
+    const delta = target - avg;
+    setGridRows(gridRows.map((r) => ({ ...r, price: +(r.price + delta).toFixed(4) })));
+    setGridFrom((f) => +(f + delta).toFixed(4));
+    setGridTo((t) => +(t + delta).toFixed(4));
+    adjustStop(target);
   };
 
   // --- Grade escalonada ---
@@ -190,9 +190,9 @@ export default function App() {
           <div className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-3">
             <Label>{scaled ? "Preço médio" : "Entrada"}</Label>
             {scaled ? (
-              <p className="text-xl font-bold text-sky-300">{money(avg)}</p>
+              <p className="text-xl font-bold text-sky-300">{price(avg)}</p>
             ) : (
-              <Editable value={entryPrice} onChange={editSingleEntry} tone="sky" />
+              <Editable value={entryPrice} onChange={editSingleEntry} tone="sky" price />
             )}
           </div>
           <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-3">
@@ -201,6 +201,7 @@ export default function App() {
               value={stop}
               onChange={(v) => setStop(ensureStopSide(avg, direction, v))}
               tone="rose"
+              price
             />
           </div>
         </div>
@@ -220,7 +221,7 @@ export default function App() {
                     </span>
                   )}
                 </Label>
-                <Editable value={takeProfit} onChange={setTakeProfit} tone="emerald" />
+                <Editable value={takeProfit} onChange={setTakeProfit} tone="emerald" price />
               </div>
               <button
                 onClick={() => setTakeProfit(null)}
@@ -232,7 +233,7 @@ export default function App() {
             </div>
           ) : (
             <button
-              onClick={() => setTakeProfit(+(avg * (isLong ? 1.06 : 0.94)).toFixed(8))}
+              onClick={() => setTakeProfit(+(avg * (isLong ? 1.06 : 0.94)).toFixed(4))}
               className="w-full rounded-xl border border-dashed border-emerald-500/30 py-2.5 text-sm text-emerald-400/80 hover:border-emerald-500/60 hover:text-emerald-400"
             >
               + definir alvo (take profit)
@@ -250,7 +251,7 @@ export default function App() {
             direction={direction}
             onEntry={dragEntry}
             onStop={setStop}
-            onTakeProfit={(p) => setTakeProfit(+p.toFixed(8))}
+            onTakeProfit={(p) => setTakeProfit(+p.toFixed(4))}
           />
         </div>
 
@@ -412,12 +413,14 @@ function Editable({
   tone,
   suffix,
   big,
+  price: priceMode,
 }: {
   value: number;
   onChange: (v: number) => void;
   tone?: "sky" | "rose" | "emerald";
   suffix?: string;
   big?: boolean;
+  price?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [buf, setBuf] = useState("");
@@ -461,7 +464,7 @@ function Editable({
       }}
       className={`w-full rounded-lg px-1 py-1 text-left font-bold ${size} ${color}`}
     >
-      {suffix ? `${value}${suffix}` : money(value)}
+      {suffix ? `${value}${suffix}` : priceMode ? price(value) : money(value)}
     </button>
   );
 }

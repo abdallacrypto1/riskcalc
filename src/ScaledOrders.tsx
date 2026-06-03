@@ -1,4 +1,4 @@
-import { money } from "./lib/format";
+import { money, price } from "./lib/format";
 import type { Direction } from "./lib/risk";
 
 export interface GridRow {
@@ -17,7 +17,7 @@ export function buildGrid(from: number, to: number, count: number): GridRow[] {
   }));
 }
 
-const round = (n: number) => +n.toFixed(2);
+const round = (n: number) => +n.toFixed(4);
 const COUNT_CHIPS = [2, 5, 10, 20];
 
 interface Props {
@@ -138,7 +138,7 @@ export default function ScaledOrders({
       <div className="space-y-1.5 rounded-xl bg-slate-900/60 p-3 text-sm">
         <Row
           label={`Preço médio (${direction === "long" ? "compra" : "venda"})`}
-          value={money(avg)}
+          value={price(avg)}
           strong
         />
         <Row label="Custo total" value={money(totalNotional)} />
