@@ -1,1 +1,1 @@
-{"root":["./src/app.tsx","./src/main.tsx","./src/lib/format.ts","./src/lib/risk.test.ts","./src/lib/risk.ts"],"version":"5.9.3"}
+{"root":["./src/app.tsx","./src/priceladder.tsx","./src/main.tsx","./src/lib/format.ts","./src/lib/risk.test.ts","./src/lib/risk.ts","./src/lib/uselocalstorage.ts"],"version":"5.9.3"}
