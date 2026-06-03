@@ -426,9 +426,21 @@ export default function App() {
                   ? "⚠ No limite: acima disso você seria liquidado antes do stop."
                   : `Liquidação em ${price(result.liquidationPrice)} (depois do stop ✓).`}
               </p>
+              <p className="mt-1 text-[11px] leading-snug text-slate-600">
+                Estimativa simplificada (≈ 1 ÷ alavancagem). Não considera taxas nem a
+                margem de manutenção da corretora — a liquidação real costuma vir um
+                pouco antes. Use o limite como teto, não como meta.
+              </p>
             </div>
           </div>
         )}
+
+        {/* Disclaimer geral */}
+        <p className="mt-6 text-center text-[11px] leading-snug text-slate-600">
+          Ferramenta de apoio ao gerenciamento de risco — não é recomendação de
+          investimento. Os cálculos (inclusive a liquidação) são estimativas e podem
+          divergir da sua corretora. Confira sempre antes de operar.
+        </p>
       </div>
     </div>
   );
