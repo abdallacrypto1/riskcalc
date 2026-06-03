@@ -460,7 +460,7 @@ function Editable({
 
   return (
     <button
-      onClick={() => {
+      onFocus={() => {
         setBuf(String(+value.toFixed(4))); // sem casas extras de ponto flutuante
         setEditing(true);
       }}
