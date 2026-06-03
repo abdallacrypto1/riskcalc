@@ -437,7 +437,7 @@ function Editable({
 
   const commit = () => {
     const n = parseFloat(buf.replace(",", "."));
-    if (Number.isFinite(n)) onChange(n);
+    if (Number.isFinite(n)) onChange(+n.toFixed(4)); // nunca mais que 4 casas
     setEditing(false);
   };
 
@@ -459,7 +459,7 @@ function Editable({
   return (
     <button
       onClick={() => {
-        setBuf(String(value));
+        setBuf(String(+value.toFixed(4))); // sem casas extras de ponto flutuante
         setEditing(true);
       }}
       className={`w-full rounded-lg px-1 py-1 text-left font-bold ${size} ${color}`}
