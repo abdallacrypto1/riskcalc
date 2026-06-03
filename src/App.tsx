@@ -171,18 +171,6 @@ export default function App() {
           </BigToggle>
         </div>
 
-        {/* O herói: gráfico arrastável */}
-        <div className="mt-4">
-          <PriceLadder
-            entries={entries}
-            avg={avg}
-            stop={stop}
-            takeProfit={takeProfit ?? undefined}
-            direction={direction}
-            onStop={setStop}
-          />
-        </div>
-
         {/* Entrada + Stop precisos (toque pra digitar) */}
         <div className="mt-3 grid grid-cols-2 gap-2">
           <div className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-3">
@@ -201,6 +189,18 @@ export default function App() {
               tone="rose"
             />
           </div>
+        </div>
+
+        {/* O herói: gráfico arrastável */}
+        <div className="mt-3">
+          <PriceLadder
+            entries={entries}
+            avg={avg}
+            stop={stop}
+            takeProfit={takeProfit ?? undefined}
+            direction={direction}
+            onStop={setStop}
+          />
         </div>
 
         {/* Resposta gigante */}
