@@ -84,6 +84,20 @@ export default function App() {
     adjustStop(price);
   };
 
+  // Arrastar a linha de entrada/médio no gráfico.
+  const dragEntry = (price: number) => {
+    if (!scaled) {
+      editSingleEntry(price);
+      return;
+    }
+    // escalonado: desloca a grade inteira mantendo os ratios
+    const delta = price - avg;
+    setGridRows(gridRows.map((r) => ({ ...r, price: +(r.price + delta).toFixed(2) })));
+    setGridFrom((f) => +(f + delta).toFixed(2));
+    setGridTo((t) => +(t + delta).toFixed(2));
+    adjustStop(price);
+  };
+
   // --- Grade escalonada ---
   const rebuildGrid = (from: number, to: number, count: number) => {
     const rows = buildGrid(from, to, count);
@@ -234,7 +248,9 @@ export default function App() {
             stop={stop}
             takeProfit={takeProfit ?? undefined}
             direction={direction}
+            onEntry={dragEntry}
             onStop={setStop}
+            onTakeProfit={(p) => setTakeProfit(+p.toFixed(8))}
           />
         </div>
 

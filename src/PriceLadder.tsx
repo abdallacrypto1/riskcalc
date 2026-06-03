@@ -4,16 +4,19 @@ import { money, pct } from "./lib/format";
 
 interface EntryLine {
   price: number;
-  label?: string;
 }
+
+type Handle = "entry" | "stop" | "tp";
 
 interface Props {
   entries: EntryLine[]; // entradas individuais (uma ou várias)
   avg: number; // preço médio (âncora)
   stop: number; // preço do stop (arrastável)
-  takeProfit?: number; // alvo opcional
+  takeProfit?: number; // alvo opcional (arrastável)
   direction: Direction;
+  onEntry?: (price: number) => void; // arrastar a entrada / médio
   onStop: (price: number) => void; // arrastar o stop
+  onTakeProfit?: (price: number) => void; // arrastar o alvo
 }
 
 interface Window {
@@ -21,24 +24,29 @@ interface Window {
   low: number;
 }
 
-/** Gráfico vertical de preço. O trader arrasta o stop com o dedo e vê tudo
- *  se reposicionar ao vivo. */
+/** Gráfico vertical de preço. O trader arrasta entrada, stop e alvo com o dedo
+ *  e vê tudo se reposicionar ao vivo. */
 export default function PriceLadder({
   entries,
   avg,
   stop,
   takeProfit,
   direction,
+  onEntry,
   onStop,
+  onTakeProfit,
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
-  const [dragging, setDragging] = useState(false);
+  const [drag, setDrag] = useState<Handle | null>(null);
   const freeze = useRef<Window | null>(null);
+
+  const isLong = direction === "long";
+  const hasTp = !!takeProfit && takeProfit > 0;
 
   const prices = [
     ...entries.map((e) => e.price),
     stop,
-    ...(takeProfit && takeProfit > 0 ? [takeProfit] : []),
+    ...(hasTp ? [takeProfit!] : []),
   ].filter((p) => Number.isFinite(p) && p > 0);
 
   const computeWindow = (): Window => {
@@ -50,10 +58,9 @@ export default function PriceLadder({
     return { high: hi + pad, low: Math.max(0, lo - pad) };
   };
 
-  const win = dragging && freeze.current ? freeze.current : computeWindow();
+  const win = drag && freeze.current ? freeze.current : computeWindow();
   const span = win.high - win.low || 1;
 
-  // preço -> fração 0..1 a partir do topo
   const frac = (p: number) => clamp((win.high - p) / span, 0, 1);
   const topPct = (p: number) => `${frac(p) * 100}%`;
 
@@ -63,27 +70,43 @@ export default function PriceLadder({
     return win.high - f * span;
   };
 
-  const onPointerDown = (e: React.PointerEvent) => {
-    e.currentTarget.setPointerCapture(e.pointerId);
-    freeze.current = computeWindow();
-    setDragging(true);
-  };
-  const onPointerMove = (e: React.PointerEvent) => {
-    if (!dragging) return;
-    let p = priceFromClientY(e.clientY);
-    // mantém o stop do lado certo do preço médio
-    const guard = avg * 0.0005;
-    if (direction === "long") p = Math.min(p, avg - guard);
-    else p = Math.max(p, avg + guard);
-    onStop(Math.max(p, 0));
-  };
-  const endDrag = (e: React.PointerEvent) => {
-    e.currentTarget.releasePointerCapture?.(e.pointerId);
-    freeze.current = null;
-    setDragging(false);
+  const g = avg * 0.0005; // folga mínima entre as linhas
+
+  const clampFor = (kind: Handle, p: number): number => {
+    p = Math.max(p, 0);
+    if (kind === "stop") return isLong ? Math.min(p, avg - g) : Math.max(p, avg + g);
+    if (kind === "entry") return isLong ? Math.max(p, stop + g) : Math.min(p, stop - g);
+    // tp
+    return isLong ? Math.max(p, avg + g) : Math.min(p, avg - g);
   };
 
-  const isLong = direction === "long";
+  const emit = (kind: Handle, p: number) => {
+    if (kind === "stop") onStop(p);
+    else if (kind === "entry") onEntry?.(p);
+    else onTakeProfit?.(p);
+  };
+
+  const handlers = (kind: Handle) => ({
+    onPointerDown: (e: React.PointerEvent) => {
+      e.currentTarget.setPointerCapture(e.pointerId);
+      freeze.current = computeWindow();
+      setDrag(kind);
+    },
+    onPointerMove: (e: React.PointerEvent) => {
+      if (drag !== kind) return;
+      emit(kind, clampFor(kind, priceFromClientY(e.clientY)));
+    },
+    onPointerUp: (e: React.PointerEvent) => {
+      e.currentTarget.releasePointerCapture?.(e.pointerId);
+      freeze.current = null;
+      setDrag(null);
+    },
+    onPointerCancel: () => {
+      freeze.current = null;
+      setDrag(null);
+    },
+  });
+
   const stopDistPct = avg > 0 ? (Math.abs(avg - stop) / avg) * 100 : NaN;
   const multipleEntries = entries.length > 1;
 
@@ -95,68 +118,82 @@ export default function PriceLadder({
     >
       {/* zona de risco entre o médio e o stop */}
       <div
-        className={`absolute inset-x-0 ${isLong ? "bg-rose-500/10" : "bg-rose-500/10"}`}
+        className="absolute inset-x-0 bg-rose-500/10"
         style={{
           top: topPct(Math.max(avg, stop)),
           bottom: `${(1 - frac(Math.min(avg, stop))) * 100}%`,
         }}
       />
       {/* zona de lucro até o alvo */}
-      {takeProfit && takeProfit > 0 && (
+      {hasTp && (
         <div
           className="absolute inset-x-0 bg-emerald-500/10"
           style={{
-            top: topPct(Math.max(avg, takeProfit)),
-            bottom: `${(1 - frac(Math.min(avg, takeProfit))) * 100}%`,
+            top: topPct(Math.max(avg, takeProfit!)),
+            bottom: `${(1 - frac(Math.min(avg, takeProfit!))) * 100}%`,
           }}
         />
       )}
 
-      {/* entradas individuais (quando escalado) */}
+      {/* entradas individuais (quando escalado) — linhas finas, não arrastáveis */}
       {multipleEntries &&
         entries.map((e, i) => (
-          <Line key={i} top={topPct(e.price)} color="slate" thin>
+          <div
+            key={i}
+            className="absolute inset-x-0"
+            style={{ top: topPct(e.price), transform: "translateY(-50%)" }}
+          >
+            <div className="border-t border-slate-600" />
             {entries.length <= 4 && (
-              <span className="text-[11px] text-slate-400">{money(e.price)}</span>
+              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-slate-400">
+                {money(e.price)}
+              </span>
             )}
-          </Line>
+          </div>
         ))}
 
-      {/* alvo */}
-      {takeProfit && takeProfit > 0 && (
-        <Line top={topPct(takeProfit)} color="emerald" dashed>
-          <Tag color="emerald">Alvo {money(takeProfit)}</Tag>
-        </Line>
+      {/* ALVO — arrastável */}
+      {hasTp && (
+        <DragLine
+          top={topPct(takeProfit!)}
+          z="z-20"
+          line="border-emerald-400 border-dashed"
+          side="left"
+          pill="bg-emerald-500 text-white"
+          handlers={onTakeProfit ? handlers("tp") : undefined}
+        >
+          Alvo {money(takeProfit!)}
+        </DragLine>
       )}
 
-      {/* preço médio / entrada (âncora) */}
-      <Line top={topPct(avg)} color="sky">
-        <Tag color="sky">
-          {multipleEntries ? "Médio" : "Entrada"} {money(avg)}
-        </Tag>
-      </Line>
+      {/* ENTRADA / MÉDIO — arrastável */}
+      <DragLine
+        top={topPct(avg)}
+        z="z-20"
+        line="border-sky-400"
+        side="left"
+        pill="bg-sky-500 text-white"
+        handlers={onEntry ? handlers("entry") : undefined}
+      >
+        {multipleEntries ? "Médio" : "Entrada"} {money(avg)}
+      </DragLine>
 
       {/* STOP — arrastável */}
-      <div
-        className="absolute inset-x-0 z-10 flex cursor-grab items-center active:cursor-grabbing"
-        style={{ top: topPct(stop), transform: "translateY(-50%)", touchAction: "none" }}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
+      <DragLine
+        top={topPct(stop)}
+        z="z-30"
+        line="border-rose-400 border-dashed"
+        side="right"
+        pill="bg-rose-500 text-white"
+        handlers={handlers("stop")}
       >
-        <div className="h-9 w-full" /> {/* área de toque alta */}
-        <div className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 border-t-2 border-dashed border-rose-400" />
-        <div className="pointer-events-none absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 rounded-lg bg-rose-500 px-2 py-1 text-xs font-semibold text-white shadow-lg">
-          <GripIcon />
-          Stop {money(stop)} · {pct(stopDistPct)}
-        </div>
-      </div>
+        Stop {money(stop)} · {pct(stopDistPct)}
+      </DragLine>
 
       {/* dica de arrastar */}
-      {!dragging && (
+      {!drag && (
         <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-slate-800/80 px-3 py-1 text-[11px] text-slate-400">
-          arraste o stop ↕
+          arraste as linhas ↕
         </div>
       )}
     </div>
@@ -167,50 +204,41 @@ function clamp(v: number, lo: number, hi: number) {
   return Math.min(hi, Math.max(lo, v));
 }
 
-function Line({
+function DragLine({
   top,
-  color,
+  z,
+  line,
+  side,
+  pill,
+  handlers,
   children,
-  thin,
-  dashed,
 }: {
   top: string;
-  color: "sky" | "emerald" | "slate";
-  children?: React.ReactNode;
-  thin?: boolean;
-  dashed?: boolean;
-}) {
-  const border =
-    color === "sky"
-      ? "border-sky-400"
-      : color === "emerald"
-        ? "border-emerald-400"
-        : "border-slate-600";
-  return (
-    <div className="absolute inset-x-0" style={{ top, transform: "translateY(-50%)" }}>
-      <div
-        className={`${border} ${thin ? "border-t" : "border-t-2"} ${dashed ? "border-dashed" : ""}`}
-      />
-      {children && <div className="absolute left-2 top-1/2 -translate-y-1/2">{children}</div>}
-    </div>
-  );
-}
-
-function Tag({
-  color,
-  children,
-}: {
-  color: "sky" | "emerald";
+  z: string;
+  line: string;
+  side: "left" | "right";
+  pill: string;
+  handlers?: ReturnType<() => Record<string, unknown>>;
   children: React.ReactNode;
 }) {
-  const cls =
-    color === "sky"
-      ? "bg-sky-500/90 text-white"
-      : "bg-emerald-500/90 text-white";
+  const draggable = !!handlers;
   return (
-    <span className={`rounded-lg px-2 py-1 text-xs font-semibold shadow ${cls}`}>
-      {children}
-    </span>
+    <div
+      className={`absolute inset-x-0 ${z} flex items-center ${draggable ? "cursor-grab active:cursor-grabbing" : ""}`}
+      style={{ top, transform: "translateY(-50%)", touchAction: "none" }}
+      {...handlers}
+    >
+      <div className="h-9 w-full" /> {/* área de toque alta */}
+      <div
+        className={`pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 border-t-2 ${line}`}
+      />
+      <div
+        className={`pointer-events-none absolute ${side === "left" ? "left-2" : "right-2"} top-1/2 flex -translate-y-1/2 items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold shadow-lg ${pill}`}
+      >
+        {draggable && <GripIcon />}
+        {children}
+      </div>
+    </div>
   );
 }
 
