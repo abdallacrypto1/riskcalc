@@ -48,6 +48,9 @@ export interface RiskResult {
   legs: LegResult[];
   rMultipleToTp?: number; // R:R até o take profit, se informado
   profitAtTp?: number; // lucro estimado no alvo ($)
+  liquidationPrice: number; // preço de liquidação estimado (simplificado)
+  maxSafeLeverage: number; // alavancagem máxima p/ liquidar DEPOIS do stop
+  liquidatedBeforeStop: boolean; // true se a liquidação acontece antes do stop
 }
 
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
@@ -120,6 +123,17 @@ export function calcRisk(input: RiskInput): RiskResult {
 
   const riskAmount = balance * (riskPct / 100);
 
+  // Liquidação (modelo simplificado: ignora taxas e margem de manutenção).
+  // A perda que zera a margem = notional / alavancagem, ou seja, o preço se
+  // move ~1/alavancagem antes de liquidar. Logo, p/ liquidar DEPOIS do stop:
+  //   alavancagem_máx = 1 / (distância do stop em fração)
+  const stopFrac = avgEntry > 0 ? stopDistance / avgEntry : NaN;
+  const maxSafeLeverage = stopFrac > 0 ? 1 / stopFrac : Infinity;
+  const liqFrac = leverage > 0 ? 1 / leverage : Infinity;
+  const liquidationPrice =
+    direction === "long" ? avgEntry * (1 - liqFrac) : avgEntry * (1 + liqFrac);
+  const liquidatedBeforeStop = leverage > maxSafeLeverage + 1e-9;
+
   if (errors.length > 0) {
     return {
       ok: false,
@@ -134,6 +148,9 @@ export function calcRisk(input: RiskInput): RiskResult {
       requiredMargin: 0,
       marginPctOfBalance: 0,
       legs: [],
+      liquidationPrice,
+      maxSafeLeverage,
+      liquidatedBeforeStop,
     };
   }
 
@@ -178,5 +195,8 @@ export function calcRisk(input: RiskInput): RiskResult {
     legs: legResults,
     rMultipleToTp,
     profitAtTp,
+    liquidationPrice,
+    maxSafeLeverage,
+    liquidatedBeforeStop,
   };
 }

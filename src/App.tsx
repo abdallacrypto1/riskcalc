@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   calcRisk,
   weightedAvgEntry,
@@ -63,6 +63,25 @@ export default function App() {
   );
 
   const isLong = direction === "long";
+
+  // Alavancagem máxima segura (liquidar depois do stop) e trava.
+  const safeMaxLev = Number.isFinite(result.maxSafeLeverage)
+    ? Math.max(1, Math.floor(result.maxSafeLeverage * 100) / 100)
+    : Infinity;
+  const clampLev = (v: number) =>
+    Math.max(1, Number.isFinite(safeMaxLev) ? Math.min(v, safeMaxLev) : v);
+  const atMaxLev = leverage >= safeMaxLev - 1e-9;
+
+  // Se o stop se aproxima e a alavancagem atual passa a liquidar antes, trava.
+  useEffect(() => {
+    if (Number.isFinite(safeMaxLev) && leverage > safeMaxLev) setLeverage(safeMaxLev);
+  }, [safeMaxLev]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Linha de liquidação: só mostra quando está perto do stop (relevante).
+  const liqFrac = leverage > 0 ? 1 / leverage : Infinity;
+  const stopFrac = avg > 0 ? Math.abs(avg - stop) / avg : Infinity;
+  const showLiq =
+    leverage > 1 && Number.isFinite(result.liquidationPrice) && liqFrac <= stopFrac * 2;
 
   // Mantém o stop sempre do lado certo do preço médio.
   const ensureStopSide = (a: number, dir: Direction, s: number) => {
@@ -249,6 +268,7 @@ export default function App() {
             avg={avg}
             stop={stop}
             takeProfit={takeProfit ?? undefined}
+            liquidation={showLiq ? result.liquidationPrice : undefined}
             direction={direction}
             onEntry={dragEntry}
             onStop={setStop}
@@ -278,6 +298,14 @@ export default function App() {
                 margem <b className="text-slate-200">{money(result.requiredMargin)}</b>
                 {leverage > 1 && <span className="text-slate-500"> ({leverage}x)</span>}
               </span>
+              {leverage > 1 && Number.isFinite(result.liquidationPrice) && (
+                <>
+                  <span className="text-slate-700">·</span>
+                  <span>
+                    liq <b className="text-amber-300">{price(result.liquidationPrice)}</b>
+                  </span>
+                </>
+              )}
               {result.rMultipleToTp !== undefined && (
                 <>
                   <span className="text-slate-700">·</span>
@@ -360,8 +388,44 @@ export default function App() {
             )}
 
             <div>
-              <Label>Alavancagem</Label>
-              <Editable value={leverage} onChange={setLeverage} suffix="x" />
+              <div className="mb-1.5 flex items-baseline justify-between">
+                <Label>Alavancagem</Label>
+                {Number.isFinite(safeMaxLev) && (
+                  <span className="text-xs text-slate-500">
+                    máx <b className="text-slate-300">{safeMaxLev}x</b> pelo stop
+                  </span>
+                )}
+              </div>
+              <Editable value={leverage} onChange={(v) => setLeverage(clampLev(v))} suffix="x" />
+              {/* botões rápidos limitados pela trava */}
+              <div className="mt-2 flex gap-2">
+                {[1, 3, 5, 10, 20].map((L) => {
+                  const blocked = Number.isFinite(safeMaxLev) && L > safeMaxLev;
+                  return (
+                    <button
+                      key={L}
+                      disabled={blocked}
+                      onClick={() => setLeverage(L)}
+                      className={`flex-1 rounded-lg border py-1.5 text-sm font-semibold ${
+                        leverage === L
+                          ? "border-emerald-500 bg-emerald-500/15 text-emerald-300"
+                          : blocked
+                            ? "cursor-not-allowed border-slate-800 bg-slate-900/40 text-slate-700"
+                            : "border-slate-700 bg-slate-900 text-slate-400"
+                      }`}
+                    >
+                      {L}x
+                    </button>
+                  );
+                })}
+              </div>
+              <p
+                className={`mt-2 text-xs ${atMaxLev ? "text-amber-300" : "text-slate-500"}`}
+              >
+                {atMaxLev
+                  ? "⚠ No limite: acima disso você seria liquidado antes do stop."
+                  : `Liquidação em ${price(result.liquidationPrice)} (depois do stop ✓).`}
+              </p>
             </div>
           </div>
         )}

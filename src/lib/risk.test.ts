@@ -107,6 +107,49 @@ describe("alavancagem e R:R", () => {
   });
 });
 
+describe("liquidação x stop", () => {
+  const base = {
+    balance: 1000,
+    riskPct: 2,
+    direction: "long" as const,
+    legs: [{ price: 100, allocPct: 100 }],
+    stop: { kind: "price" as const, stopPrice: 90 }, // stop a 10%
+  };
+
+  it("alavancagem máxima segura = 1 / distância do stop", () => {
+    const r = calcRisk({ ...base, leverage: 5 });
+    expect(r.maxSafeLeverage).toBeCloseTo(10); // 1 / 0.10
+  });
+
+  it("na alavancagem máxima, a liquidação cai no stop", () => {
+    const r = calcRisk({ ...base, leverage: 10 });
+    expect(r.liquidationPrice).toBeCloseTo(90); // == stop
+    expect(r.liquidatedBeforeStop).toBe(false);
+  });
+
+  it("acima da máxima, liquida antes do stop", () => {
+    const r = calcRisk({ ...base, leverage: 11 });
+    expect(r.liquidationPrice).toBeGreaterThan(90); // mais perto da entrada
+    expect(r.liquidatedBeforeStop).toBe(true);
+  });
+
+  it("abaixo da máxima, liquida depois do stop (seguro)", () => {
+    const r = calcRisk({ ...base, leverage: 5 });
+    expect(r.liquidationPrice).toBeCloseTo(80); // 100 * (1 - 1/5)
+    expect(r.liquidatedBeforeStop).toBe(false);
+  });
+
+  it("short: liquidação fica acima da entrada", () => {
+    const r = calcRisk({
+      ...base,
+      direction: "short",
+      stop: { kind: "price", stopPrice: 110 },
+      leverage: 10,
+    });
+    expect(r.liquidationPrice).toBeCloseTo(110);
+  });
+});
+
 describe("validações", () => {
   it("rejeita stop do lado errado em long", () => {
     const r = calcRisk({
