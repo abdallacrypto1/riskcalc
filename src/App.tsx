@@ -191,6 +191,41 @@ export default function App() {
           </div>
         </div>
 
+        {/* Alvo / take profit — acima do gráfico pois aparece desenhado nele */}
+        <div className="mt-2">
+          {takeProfit && takeProfit > 0 ? (
+            <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3">
+              <div className="flex-1">
+                <Label>
+                  Alvo
+                  {result.rMultipleToTp !== undefined && (
+                    <span
+                      className={`ml-2 ${result.rMultipleToTp >= 1 ? "text-emerald-400" : "text-amber-400"}`}
+                    >
+                      {result.rMultipleToTp.toFixed(1)}R
+                    </span>
+                  )}
+                </Label>
+                <Editable value={takeProfit} onChange={setTakeProfit} tone="emerald" />
+              </div>
+              <button
+                onClick={() => setTakeProfit(null)}
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-700 text-slate-400 hover:border-rose-500 hover:text-rose-400"
+                aria-label="Remover alvo"
+              >
+                ×
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setTakeProfit(+(avg * (isLong ? 1.06 : 0.94)).toFixed(8))}
+              className="w-full rounded-xl border border-dashed border-emerald-500/30 py-2.5 text-sm text-emerald-400/80 hover:border-emerald-500/60 hover:text-emerald-400"
+            >
+              + definir alvo (take profit)
+            </button>
+          )}
+        </div>
+
         {/* O herói: gráfico arrastável */}
         <div className="mt-3">
           <PriceLadder
@@ -309,30 +344,6 @@ export default function App() {
             <div>
               <Label>Alavancagem</Label>
               <Editable value={leverage} onChange={setLeverage} suffix="x" />
-            </div>
-
-            <div>
-              <Label>Alvo / take profit (opcional)</Label>
-              {takeProfit && takeProfit > 0 ? (
-                <div className="flex items-center gap-2">
-                  <div className="flex-1">
-                    <Editable value={takeProfit} onChange={setTakeProfit} tone="emerald" />
-                  </div>
-                  <button
-                    onClick={() => setTakeProfit(null)}
-                    className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-400"
-                  >
-                    remover
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setTakeProfit(+(avg * (isLong ? 1.06 : 0.94)).toFixed(8))}
-                  className="w-full rounded-lg border border-dashed border-slate-700 py-2 text-sm text-slate-400"
-                >
-                  + definir alvo
-                </button>
-              )}
             </div>
           </div>
         )}
