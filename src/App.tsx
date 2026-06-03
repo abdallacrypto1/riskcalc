@@ -8,8 +8,10 @@ import {
 import { money, qty, pct } from "./lib/format";
 import { useLocalStorage } from "./lib/useLocalStorage";
 import PriceLadder from "./PriceLadder";
+import ScaledOrders, { buildGrid, type GridRow } from "./ScaledOrders";
 
 const RISK_CHIPS = [1, 2, 3];
+type EntryMode = "single" | "grid";
 
 export default function App() {
   // Configurações — salvas no navegador, ficam fora do caminho.
@@ -19,14 +21,30 @@ export default function App() {
 
   // Trade atual.
   const [direction, setDirection] = useLocalStorage<Direction>("rc.dir", "long");
-  const [entries, setEntries] = useLocalStorage<EntryLeg[]>("rc.entries", [
-    { price: 100, allocPct: 100 },
-  ]);
+  const [entryMode, setEntryMode] = useLocalStorage<EntryMode>("rc.mode", "single");
+  const [entryPrice, setEntryPrice] = useLocalStorage("rc.entry", 100);
+  const [gridFrom, setGridFrom] = useLocalStorage("rc.gridFrom", 100);
+  const [gridTo, setGridTo] = useLocalStorage("rc.gridTo", 96);
+  const [gridCount, setGridCount] = useLocalStorage("rc.gridCount", 5);
+  const [gridRows, setGridRows] = useLocalStorage<GridRow[]>(
+    "rc.gridRows",
+    buildGrid(100, 96, 5),
+  );
   const [stop, setStop] = useLocalStorage("rc.stop", 98);
   const [takeProfit, setTakeProfit] = useLocalStorage<number | null>("rc.tp", null);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
+
+  const scaled = entryMode === "grid";
+
+  const entries: EntryLeg[] = useMemo(
+    () =>
+      scaled
+        ? gridRows.map((r) => ({ price: r.price, allocPct: r.ratio }))
+        : [{ price: entryPrice, allocPct: 100 }],
+    [scaled, gridRows, entryPrice],
+  );
 
   const avg = useMemo(() => weightedAvgEntry(entries), [entries]);
 
@@ -44,6 +62,8 @@ export default function App() {
     [balance, riskPct, direction, entries, stop, leverage, takeProfit],
   );
 
+  const isLong = direction === "long";
+
   // Mantém o stop sempre do lado certo do preço médio.
   const ensureStopSide = (a: number, dir: Direction, s: number) => {
     if (!(a > 0)) return s;
@@ -51,20 +71,42 @@ export default function App() {
     if (dir === "short" && s <= a) return +(a * 1.02).toFixed(8);
     return s;
   };
+  const adjustStop = (a: number, dir: Direction = direction) =>
+    setStop((s) => ensureStopSide(a, dir, s));
 
   const flipDirection = (dir: Direction) => {
     setDirection(dir);
-    // espelha o stop para o outro lado, mantendo a distância
     setStop((s) => ensureStopSide(avg, dir, +(2 * avg - s).toFixed(8)));
   };
 
-  const setEntryPrice = (i: number, price: number) => {
-    const next = entries.map((e, idx) => (idx === i ? { ...e, price } : e));
-    setEntries(next);
-    setStop((s) => ensureStopSide(weightedAvgEntry(next), direction, s));
+  const editSingleEntry = (price: number) => {
+    setEntryPrice(price);
+    adjustStop(price);
   };
 
-  const isLong = direction === "long";
+  // --- Grade escalonada ---
+  const rebuildGrid = (from: number, to: number, count: number) => {
+    const rows = buildGrid(from, to, count);
+    setGridRows(rows);
+    adjustStop(weightedAvgEntry(rows.map((r) => ({ price: r.price, allocPct: r.ratio }))));
+  };
+  const editGridRow = (i: number, patch: Partial<GridRow>) => {
+    const rows = gridRows.map((r, idx) => (idx === i ? { ...r, ...patch } : r));
+    setGridRows(rows);
+    adjustStop(weightedAvgEntry(rows.map((r) => ({ price: r.price, allocPct: r.ratio }))));
+  };
+
+  const switchMode = (mode: EntryMode) => {
+    if (mode === "grid" && entryMode !== "grid") {
+      // entra na grade a partir do preço atual
+      const from = entryPrice;
+      const to = +(entryPrice * (isLong ? 0.96 : 1.04)).toFixed(2);
+      setGridFrom(from);
+      setGridTo(to);
+      rebuildGrid(from, to, gridCount);
+    }
+    setEntryMode(mode);
+  };
 
   return (
     <div className="min-h-full text-slate-100">
@@ -121,18 +163,10 @@ export default function App() {
 
         {/* Long / Short */}
         <div className="mt-4 flex gap-2">
-          <BigToggle
-            active={isLong}
-            tone="emerald"
-            onClick={() => flipDirection("long")}
-          >
+          <BigToggle active={isLong} tone="emerald" onClick={() => flipDirection("long")}>
             ▲ Comprar
           </BigToggle>
-          <BigToggle
-            active={!isLong}
-            tone="rose"
-            onClick={() => flipDirection("short")}
-          >
+          <BigToggle active={!isLong} tone="rose" onClick={() => flipDirection("short")}>
             ▼ Vender
           </BigToggle>
         </div>
@@ -152,15 +186,11 @@ export default function App() {
         {/* Entrada + Stop precisos (toque pra digitar) */}
         <div className="mt-3 grid grid-cols-2 gap-2">
           <div className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-3">
-            <Label>{entries.length > 1 ? "Preço médio" : "Entrada"}</Label>
-            {entries.length > 1 ? (
+            <Label>{scaled ? "Preço médio" : "Entrada"}</Label>
+            {scaled ? (
               <p className="text-xl font-bold text-sky-300">{money(avg)}</p>
             ) : (
-              <Editable
-                value={entries[0].price}
-                onChange={(v) => setEntryPrice(0, v)}
-                tone="sky"
-              />
+              <Editable value={entryPrice} onChange={editSingleEntry} tone="sky" />
             )}
           </div>
           <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-3">
@@ -179,9 +209,7 @@ export default function App() {
             <p className="text-sm font-semibold uppercase tracking-wider text-emerald-300">
               {isLong ? "Compre" : "Venda"}
             </p>
-            <p className="mt-1 text-4xl font-black text-white">
-              {qty(result.totalUnits)}
-            </p>
+            <p className="mt-1 text-4xl font-black text-white">{qty(result.totalUnits)}</p>
             <p className="text-sm text-slate-400">moedas</p>
             <p className="mt-2 text-lg font-semibold text-slate-200">
               = {money(result.totalNotional)}
@@ -192,14 +220,11 @@ export default function App() {
               </span>
               <span className="text-slate-700">·</span>
               <span>stop {pct(result.stopDistancePct)}</span>
-              {leverage > 1 && (
-                <>
-                  <span className="text-slate-700">·</span>
-                  <span>
-                    margem <b className="text-slate-200">{money(result.requiredMargin)}</b>
-                  </span>
-                </>
-              )}
+              <span className="text-slate-700">·</span>
+              <span>
+                margem <b className="text-slate-200">{money(result.requiredMargin)}</b>
+                {leverage > 1 && <span className="text-slate-500"> ({leverage}x)</span>}
+              </span>
               {result.rMultipleToTp !== undefined && (
                 <>
                   <span className="text-slate-700">·</span>
@@ -216,22 +241,6 @@ export default function App() {
                 </>
               )}
             </div>
-
-            {result.legs.length > 1 && (
-              <div className="mt-4 space-y-1.5 text-left">
-                {result.legs.map((l, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between rounded-lg bg-slate-900/50 px-3 py-2 text-sm"
-                  >
-                    <span className="text-slate-400">
-                      {isLong ? "Compra" : "Venda"} @ {money(l.price)}
-                    </span>
-                    <span className="text-slate-200">{qty(l.units)} · {money(l.notional)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         ) : (
           <div className="mt-3 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 text-center text-sm text-amber-300">
@@ -249,6 +258,54 @@ export default function App() {
 
         {optionsOpen && (
           <div className="mt-2 space-y-5 rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+            {/* Tipo de entrada */}
+            <div>
+              <Label>Entrada</Label>
+              <div className="flex rounded-lg border border-slate-700 bg-slate-900 p-0.5">
+                {(["single", "grid"] as EntryMode[]).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => switchMode(m)}
+                    className={`flex-1 rounded-md py-1.5 text-sm font-medium transition ${
+                      entryMode === m
+                        ? "bg-slate-700 text-white"
+                        : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    {m === "single" ? "Única" : "Escalonada"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {scaled && (
+              <ScaledOrders
+                from={gridFrom}
+                to={gridTo}
+                count={gridCount}
+                rows={gridRows}
+                direction={direction}
+                values={result.legs.map((l) => l.notional)}
+                avg={avg}
+                totalNotional={result.totalNotional}
+                margin={result.requiredMargin}
+                leverage={leverage}
+                onFrom={(v) => {
+                  setGridFrom(v);
+                  rebuildGrid(v, gridTo, gridCount);
+                }}
+                onTo={(v) => {
+                  setGridTo(v);
+                  rebuildGrid(gridFrom, v, gridCount);
+                }}
+                onCount={(v) => {
+                  setGridCount(v);
+                  rebuildGrid(gridFrom, gridTo, v);
+                }}
+                onEditRow={editGridRow}
+              />
+            )}
+
             <div>
               <Label>Alavancagem</Label>
               <Editable value={leverage} onChange={setLeverage} suffix="x" />
@@ -276,61 +333,6 @@ export default function App() {
                   + definir alvo
                 </button>
               )}
-            </div>
-
-            <div>
-              <Label>Entradas escaladas (preço médio)</Label>
-              <div className="space-y-2">
-                {entries.map((e, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <div className="flex-1">
-                      <Editable value={e.price} onChange={(v) => setEntryPrice(i, v)} small />
-                    </div>
-                    <div className="relative w-20">
-                      <input
-                        type="number"
-                        inputMode="decimal"
-                        value={e.allocPct}
-                        onChange={(ev) =>
-                          setEntries(
-                            entries.map((x, idx) =>
-                              idx === i
-                                ? { ...x, allocPct: parseFloat(ev.target.value) || 0 }
-                                : x,
-                            ),
-                          )
-                        }
-                        className="w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-2 pr-6 text-right text-sm outline-none focus:border-emerald-500"
-                      />
-                      <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-500">
-                        %
-                      </span>
-                    </div>
-                    <button
-                      onClick={() =>
-                        entries.length > 1 &&
-                        setEntries(entries.filter((_, idx) => idx !== i))
-                      }
-                      disabled={entries.length <= 1}
-                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-700 text-slate-400 disabled:opacity-30"
-                      aria-label="Remover entrada"
-                    >
-                      −
-                    </button>
-                  </div>
-                ))}
-                <button
-                  onClick={() =>
-                    setEntries([
-                      ...entries,
-                      { price: +(avg * (isLong ? 0.98 : 1.02)).toFixed(8), allocPct: 50 },
-                    ])
-                  }
-                  className="w-full rounded-lg border border-dashed border-slate-700 py-2 text-sm text-slate-400"
-                >
-                  + adicionar entrada
-                </button>
-              </div>
             </div>
           </div>
         )}
@@ -383,14 +385,12 @@ function Editable({
   tone,
   suffix,
   big,
-  small,
 }: {
   value: number;
   onChange: (v: number) => void;
   tone?: "sky" | "rose" | "emerald";
   suffix?: string;
   big?: boolean;
-  small?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [buf, setBuf] = useState("");
@@ -403,7 +403,7 @@ function Editable({
         : tone === "emerald"
           ? "text-emerald-300"
           : "text-white";
-  const size = big ? "text-2xl" : small ? "text-base" : "text-xl";
+  const size = big ? "text-2xl" : "text-xl";
 
   const commit = () => {
     const n = parseFloat(buf.replace(",", "."));

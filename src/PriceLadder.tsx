@@ -116,7 +116,9 @@ export default function PriceLadder({
       {multipleEntries &&
         entries.map((e, i) => (
           <Line key={i} top={topPct(e.price)} color="slate" thin>
-            <span className="text-[11px] text-slate-400">{money(e.price)}</span>
+            {entries.length <= 4 && (
+              <span className="text-[11px] text-slate-400">{money(e.price)}</span>
+            )}
           </Line>
         ))}
 
