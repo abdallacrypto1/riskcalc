@@ -167,6 +167,7 @@ export default function App() {
                     inputMode="decimal"
                     value={riskPct}
                     onChange={(e) => setRiskPct(parseFloat(e.target.value) || 0)}
+                    onFocus={(e) => e.target.select()}
                     className="h-full w-full rounded-lg border border-slate-700 bg-slate-900 px-2 text-center text-base outline-none focus:border-emerald-500"
                   />
                 </div>
@@ -449,6 +450,7 @@ function Editable({
         inputMode="decimal"
         value={buf}
         onChange={(e) => setBuf(e.target.value)}
+        onFocus={(e) => e.target.select()}
         onBlur={commit}
         onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
         className={`w-full rounded-lg border border-slate-600 bg-slate-900 px-2 py-1 font-bold outline-none focus:border-emerald-500 ${size} ${color}`}

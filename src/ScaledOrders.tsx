@@ -91,6 +91,7 @@ export default function ScaledOrders({
             inputMode="numeric"
             value={count}
             onChange={(e) => onCount(parseInt(e.target.value) || 1)}
+            onFocus={(e) => e.target.select()}
             className="w-16 rounded-lg border border-slate-700 bg-slate-900 px-2 text-center text-sm outline-none focus:border-emerald-500"
           />
         </div>
@@ -114,6 +115,7 @@ export default function ScaledOrders({
                 inputMode="decimal"
                 value={r.price}
                 onChange={(e) => onEditRow(i, { price: parseFloat(e.target.value) || 0 })}
+                onFocus={(e) => e.target.select()}
                 className="bg-transparent px-3 py-2 text-sm text-slate-100 outline-none focus:bg-slate-800/50"
               />
               <div className="px-3 py-2 text-sm text-slate-400">
@@ -125,6 +127,7 @@ export default function ScaledOrders({
                   inputMode="decimal"
                   value={r.ratio}
                   onChange={(e) => onEditRow(i, { ratio: parseFloat(e.target.value) || 0 })}
+                  onFocus={(e) => e.target.select()}
                   className="w-14 bg-transparent px-2 py-2 text-right text-sm text-slate-100 outline-none focus:bg-slate-800/50"
                 />
                 <span className="pr-3 text-xs text-slate-500">%</span>
@@ -168,6 +171,7 @@ function Cell({
         inputMode="decimal"
         value={value}
         onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+        onFocus={(e) => e.target.select()}
         className="w-full bg-transparent text-base font-semibold text-slate-100 outline-none"
       />
     </div>
