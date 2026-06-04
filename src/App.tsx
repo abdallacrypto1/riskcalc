@@ -234,6 +234,9 @@ export default function App() {
           </span>
           <span className="text-slate-500">{settingsOpen ? "fechar" : "✎"}</span>
         </button>
+        <p className="mt-1 px-1 text-[11px] text-slate-500">
+          Aqui você define quanto cada stop pode te custar
+        </p>
 
         {settingsOpen && (
           <div className="mt-2 space-y-4 rounded-xl border border-slate-800 bg-slate-900/60 p-4">
@@ -360,7 +363,10 @@ export default function App() {
         </div>
 
         {/* O herói: gráfico arrastável */}
-        <div className="mt-3">
+        <p className="mb-1.5 mt-4 px-1 text-[11px] text-slate-500">
+          Aqui você visualiza entrada, stop e alvo (opcional)
+        </p>
+        <div>
           <PriceLadder
             entries={entries}
             avg={avg}
@@ -378,8 +384,11 @@ export default function App() {
         </div>
 
         {/* Resposta gigante */}
+        <p className="mb-1.5 mt-4 px-1 text-center text-[11px] text-slate-500">
+          Aqui o RiskCalc dimensiona o tamanho da posição
+        </p>
         {result.ok ? (
-          <div className="mt-3 rounded-2xl border border-emerald-500/40 bg-gradient-to-b from-emerald-500/15 to-slate-900/30 p-5 text-center">
+          <div className="rounded-2xl border border-emerald-500/40 bg-gradient-to-b from-emerald-500/15 to-slate-900/30 p-5 text-center">
             <p className="text-sm font-semibold uppercase tracking-wider text-emerald-300">
               {isLong ? "Compre" : "Venda"}
             </p>
@@ -426,7 +435,7 @@ export default function App() {
             </div>
           </div>
         ) : (
-          <div className="mt-3 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 text-center text-sm text-amber-300">
+          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 text-center text-sm text-amber-300">
             {result.errors[0] ?? "Preencha os valores."}
           </div>
         )}
