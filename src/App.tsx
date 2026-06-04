@@ -783,9 +783,24 @@ function Editable({
     <button
       onClick={start}
       onFocus={start}
-      className={`w-full rounded-lg px-1 py-1 text-left font-bold ${size} ${color}`}
+      className={`flex w-full items-center gap-1.5 rounded-lg px-1 py-1 text-left font-bold ${size} ${color}`}
     >
-      {suffix ? `${value}${suffix}` : priceMode ? price(value) : money(value)}
+      <span>{suffix ? `${value}${suffix}` : priceMode ? price(value) : money(value)}</span>
+      {priceMode && (
+        <svg
+          className="h-3.5 w-3.5 shrink-0 text-slate-500"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="M12 20h9" />
+          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z" />
+        </svg>
+      )}
     </button>
   );
 }
