@@ -319,12 +319,66 @@ export default function App() {
           <AssetPicker selected={asset} onPrice={applyAssetPrice} />
         </div>
 
+        {/* Tipo de entrada: única ou escalonada — decisão antes dos campos */}
+        <div className="mt-3">
+          <div className="flex rounded-lg border border-slate-700 bg-slate-900 p-0.5">
+            {(["single", "grid"] as EntryMode[]).map((m) => (
+              <button
+                key={m}
+                onClick={() => switchMode(m)}
+                className={`flex-1 rounded-md py-1.5 text-sm font-medium transition ${
+                  entryMode === m
+                    ? "bg-slate-700 text-white"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                {m === "single" ? "Entrada única" : "Escalonada"}
+              </button>
+            ))}
+          </div>
+          {scaled && (
+            <div className="mt-3">
+              <ScaledOrders
+                from={gridFrom}
+                to={gridTo}
+                count={gridCount}
+                rows={gridRows}
+                direction={direction}
+                values={result.legs.map((l) => l.notional)}
+                avg={avg}
+                totalNotional={result.totalNotional}
+                margin={result.requiredMargin}
+                leverage={leverage}
+                decimals={fmtP}
+                onFrom={(v) => {
+                  setGridFrom(v);
+                  rebuildGrid(v, gridTo, gridCount);
+                }}
+                onTo={(v) => {
+                  setGridTo(v);
+                  rebuildGrid(gridFrom, v, gridCount);
+                }}
+                onCount={(v) => {
+                  setGridCount(v);
+                  rebuildGrid(gridFrom, gridTo, v);
+                }}
+                onEditRow={editGridRow}
+              />
+            </div>
+          )}
+        </div>
+
         {/* Entrada + Stop precisos (toque pra digitar) */}
         <div className="mt-3 grid grid-cols-2 gap-2">
           <div className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-3">
             <Label>{scaled ? "Preço médio" : "Entrada"}</Label>
             {scaled ? (
-              <p className="text-xl font-bold text-sky-300">{price(avg, fmtP)}</p>
+              <>
+                <p className="text-xl font-bold text-sky-300">{price(avg, fmtP)}</p>
+                <p className="text-[10px] leading-tight text-slate-500">
+                  média de {gridRows.length} ordens
+                </p>
+              </>
             ) : (
               <Editable
                 value={entryPrice}
@@ -509,55 +563,6 @@ export default function App() {
 
         {optionsOpen && (
           <div className="mt-2 space-y-5 rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-            {/* Tipo de entrada */}
-            <div>
-              <Label>Entrada</Label>
-              <div className="flex rounded-lg border border-slate-700 bg-slate-900 p-0.5">
-                {(["single", "grid"] as EntryMode[]).map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => switchMode(m)}
-                    className={`flex-1 rounded-md py-1.5 text-sm font-medium transition ${
-                      entryMode === m
-                        ? "bg-slate-700 text-white"
-                        : "text-slate-400 hover:text-slate-200"
-                    }`}
-                  >
-                    {m === "single" ? "Única" : "Escalonada"}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {scaled && (
-              <ScaledOrders
-                from={gridFrom}
-                to={gridTo}
-                count={gridCount}
-                rows={gridRows}
-                direction={direction}
-                values={result.legs.map((l) => l.notional)}
-                avg={avg}
-                totalNotional={result.totalNotional}
-                margin={result.requiredMargin}
-                leverage={leverage}
-                decimals={fmtP}
-                onFrom={(v) => {
-                  setGridFrom(v);
-                  rebuildGrid(v, gridTo, gridCount);
-                }}
-                onTo={(v) => {
-                  setGridTo(v);
-                  rebuildGrid(gridFrom, v, gridCount);
-                }}
-                onCount={(v) => {
-                  setGridCount(v);
-                  rebuildGrid(gridFrom, gridTo, v);
-                }}
-                onEditRow={editGridRow}
-              />
-            )}
-
             <div>
               <div className="mb-1.5 flex items-baseline justify-between">
                 <Label>Alavancagem</Label>
@@ -697,10 +702,12 @@ function StepHeader({
   n,
   label,
   className = "mt-5",
+  right,
 }: {
   n: number;
   label: string;
   className?: string;
+  right?: React.ReactNode;
 }) {
   return (
     <div className={`mb-2 flex items-center gap-2 ${className}`}>
@@ -710,6 +717,7 @@ function StepHeader({
       <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
         {label}
       </span>
+      {right}
     </div>
   );
 }
