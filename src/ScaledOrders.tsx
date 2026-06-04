@@ -36,6 +36,7 @@ interface Props {
   onTo: (v: number) => void;
   onCount: (v: number) => void;
   onEditRow: (i: number, patch: Partial<GridRow>) => void;
+  onNormalize: () => void; // reescala os ratios para somar 100%
 }
 
 export default function ScaledOrders({
@@ -54,7 +55,11 @@ export default function ScaledOrders({
   onTo,
   onCount,
   onEditRow,
+  onNormalize,
 }: Props) {
+  const ratioSum = rows.reduce((s, r) => s + (r.ratio || 0), 0);
+  const ratioOk = Math.abs(ratioSum - 100) < 0.1;
+  const sumLabel = Number.isInteger(ratioSum) ? `${ratioSum}` : ratioSum.toFixed(1);
   return (
     <div className="space-y-3">
       {/* Faixa de preço */}
@@ -104,7 +109,12 @@ export default function ScaledOrders({
         <div className="grid grid-cols-[1fr_1fr_auto] gap-px bg-slate-800 text-xs font-medium uppercase tracking-wider text-slate-500">
           <div className="bg-slate-900 px-3 py-2">Preço</div>
           <div className="bg-slate-900 px-3 py-2">Valor</div>
-          <div className="bg-slate-900 px-3 py-2 text-right">Ratio</div>
+          <div className="bg-slate-900 px-3 py-2 text-right">
+            Ratio{" "}
+            <span className={ratioOk ? "text-emerald-400" : "text-rose-400"}>
+              {sumLabel}%
+            </span>
+          </div>
         </div>
         <div className="max-h-72 overflow-y-auto">
           {rows.map((r, i) => (
@@ -138,6 +148,21 @@ export default function ScaledOrders({
           ))}
         </div>
       </div>
+
+      {/* Aviso: a soma dos ratios precisa dar 100% */}
+      {!ratioOk && (
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-rose-500/30 bg-rose-500/5 px-3 py-2 text-xs text-rose-300">
+          <span>
+            ⚠ A soma dos ratios é <b>{sumLabel}%</b> — deveria ser 100%.
+          </span>
+          <button
+            onClick={onNormalize}
+            className="shrink-0 rounded-md border border-rose-500/40 px-2 py-1 font-semibold text-rose-200 hover:bg-rose-500/10"
+          >
+            ajustar p/ 100%
+          </button>
+        </div>
+      )}
 
       {/* Resumo */}
       <div className="space-y-1.5 rounded-xl bg-slate-900/60 p-3 text-sm">
