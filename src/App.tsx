@@ -158,9 +158,19 @@ export default function App() {
         {/* Cabeçalho: marca + ajuda */}
         <div className="mb-3 flex items-start justify-between">
           <div>
-            <h1 className="text-base font-bold tracking-tight text-white">
-              Risk<span className="text-emerald-400">Calc</span>
-            </h1>
+            <div className="flex items-baseline gap-1.5">
+              <h1 className="text-base font-bold tracking-tight text-white">
+                Risk<span className="text-emerald-400">Calc</span>
+              </h1>
+              <a
+                href="https://abdallacrypto.com"
+                target="_blank"
+                rel="noopener"
+                className="text-[10px] text-slate-500 hover:text-slate-300"
+              >
+                by @abdallacrypto
+              </a>
+            </div>
             <p className="text-[11px] text-slate-500">
               o tamanho certo da posição, sem fazer conta
             </p>
