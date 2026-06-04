@@ -9,6 +9,7 @@ import { money, price, qty, pct } from "./lib/format";
 import { useLocalStorage } from "./lib/useLocalStorage";
 import PriceLadder from "./PriceLadder";
 import ScaledOrders, { buildGrid, type GridRow } from "./ScaledOrders";
+import HelpSheet from "./HelpSheet";
 
 const RISK_CHIPS = [1, 2, 3];
 type EntryMode = "single" | "grid";
@@ -35,6 +36,7 @@ export default function App() {
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const scaled = entryMode === "grid";
 
@@ -144,6 +146,22 @@ export default function App() {
   return (
     <div className="min-h-full text-slate-100">
       <div className="mx-auto max-w-md px-4 pb-12 pt-4">
+        {/* Cabeçalho: marca + ajuda */}
+        <div className="mb-3 flex items-center justify-between">
+          <h1 className="text-base font-bold tracking-tight text-white">
+            Risk<span className="text-emerald-400">Calc</span>
+          </h1>
+          <button
+            onClick={() => setHelpOpen(true)}
+            className="flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-900 px-3 py-1.5 text-sm text-slate-300 hover:border-emerald-500 hover:text-emerald-300"
+          >
+            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500/20 text-xs font-bold text-emerald-300">
+              ?
+            </span>
+            Como funciona
+          </button>
+        </div>
+
         {/* Configurações (banca + risco) escondidas atrás de um toque */}
         <button
           onClick={() => setSettingsOpen((o) => !o)}
@@ -442,6 +460,8 @@ export default function App() {
           divergir da sua corretora. Confira sempre antes de operar.
         </p>
       </div>
+
+      <HelpSheet open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   );
 }

@@ -18,6 +18,29 @@ body {
     sans-serif;
 }
 
+@keyframes rc-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes rc-sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.rc-fade {
+  animation: rc-fade-in 0.18s ease-out;
+}
+.rc-sheet {
+  animation: rc-sheet-up 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 /* Tira as setinhas dos inputs number pra ficar mais limpo no mobile */
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
