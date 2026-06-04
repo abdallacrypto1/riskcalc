@@ -12,6 +12,7 @@ import ScaledOrders, { buildGrid, type GridRow } from "./ScaledOrders";
 import HelpSheet from "./HelpSheet";
 
 const RISK_CHIPS = [1, 2, 3];
+const RR_CHIPS = [1, 2, 3, 5]; // atalhos de risco:retorno (R)
 type EntryMode = "single" | "grid";
 
 export default function App() {
@@ -103,6 +104,14 @@ export default function App() {
   const editSingleEntry = (price: number) => {
     setEntryPrice(price);
     adjustStop(price);
+  };
+
+  // Define o alvo a partir de um múltiplo de risco:retorno (ex: 2:1 = 2R).
+  const setTpFromR = (R: number) => {
+    const dist = Math.abs(avg - stop);
+    if (!(avg > 0) || !(dist > 0)) return;
+    const tp = isLong ? avg + R * dist : avg - R * dist;
+    setTakeProfit(+tp.toFixed(4));
   };
 
   // Arrastar a linha de entrada/médio no gráfico.
@@ -247,35 +256,41 @@ export default function App() {
         {/* Alvo / take profit — acima do gráfico pois aparece desenhado nele */}
         <div className="mt-2">
           {takeProfit && takeProfit > 0 ? (
-            <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3">
-              <div className="flex-1">
-                <Label>
-                  Alvo
-                  {result.rMultipleToTp !== undefined && (
-                    <span
-                      className={`ml-2 ${result.rMultipleToTp >= 1 ? "text-emerald-400" : "text-amber-400"}`}
-                    >
-                      {result.rMultipleToTp.toFixed(1)}R
-                    </span>
-                  )}
-                </Label>
-                <Editable value={takeProfit} onChange={setTakeProfit} tone="emerald" price />
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3">
+              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <Label>
+                    Alvo
+                    {result.rMultipleToTp !== undefined && (
+                      <span
+                        className={`ml-2 ${result.rMultipleToTp >= 1 ? "text-emerald-400" : "text-amber-400"}`}
+                      >
+                        {result.rMultipleToTp.toFixed(1)}R
+                      </span>
+                    )}
+                  </Label>
+                  <Editable value={takeProfit} onChange={setTakeProfit} tone="emerald" price />
+                </div>
+                <button
+                  onClick={() => setTakeProfit(null)}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-700 text-slate-400 hover:border-rose-500 hover:text-rose-400"
+                  aria-label="Remover alvo"
+                >
+                  ×
+                </button>
               </div>
-              <button
-                onClick={() => setTakeProfit(null)}
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-700 text-slate-400 hover:border-rose-500 hover:text-rose-400"
-                aria-label="Remover alvo"
-              >
-                ×
-              </button>
+              <div className="mt-3">
+                <RrChips activeR={result.rMultipleToTp} onPick={setTpFromR} />
+              </div>
             </div>
           ) : (
-            <button
-              onClick={() => setTakeProfit(+(avg * (isLong ? 1.06 : 0.94)).toFixed(4))}
-              className="w-full rounded-xl border border-dashed border-emerald-500/30 py-2.5 text-sm text-emerald-400/80 hover:border-emerald-500/60 hover:text-emerald-400"
-            >
-              + definir alvo (take profit)
-            </button>
+            <div className="rounded-xl border border-dashed border-emerald-500/30 bg-emerald-500/5 p-3">
+              <Label>Alvo / take profit (opcional)</Label>
+              <p className="mb-2 text-xs text-slate-500">
+                Escolha o risco:retorno — preenchemos o preço pra você.
+              </p>
+              <RrChips activeR={undefined} onPick={setTpFromR} />
+            </div>
           )}
         </div>
 
@@ -467,6 +482,36 @@ export default function App() {
 }
 
 /* ---------- UI primitives ---------- */
+
+/** Atalhos de risco:retorno — preenchem o alvo automaticamente. */
+function RrChips({
+  activeR,
+  onPick,
+}: {
+  activeR: number | undefined;
+  onPick: (r: number) => void;
+}) {
+  return (
+    <div className="flex gap-2">
+      {RR_CHIPS.map((R) => {
+        const active = activeR !== undefined && Math.abs(activeR - R) < 0.05;
+        return (
+          <button
+            key={R}
+            onClick={() => onPick(R)}
+            className={`flex-1 rounded-lg border py-2 text-sm font-semibold ${
+              active
+                ? "border-emerald-500 bg-emerald-500/15 text-emerald-300"
+                : "border-slate-700 bg-slate-900 text-slate-400 hover:border-slate-600"
+            }`}
+          >
+            {R}:1
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
