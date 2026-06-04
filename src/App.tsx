@@ -270,6 +270,12 @@ export default function App() {
                     )}
                   </Label>
                   <Editable value={takeProfit} onChange={setTakeProfit} tone="emerald" price />
+                  {result.profitAtTp !== undefined && (
+                    <p className="mt-0.5 text-sm text-slate-400">
+                      ganha{" "}
+                      <b className="text-emerald-300">+{money(result.profitAtTp)}</b> se bater
+                    </p>
+                  )}
                 </div>
                 <button
                   onClick={() => setTakeProfit(null)}
@@ -280,7 +286,11 @@ export default function App() {
                 </button>
               </div>
               <div className="mt-3">
-                <RrChips activeR={result.rMultipleToTp} onPick={setTpFromR} />
+                <RrChips
+                  activeR={result.rMultipleToTp}
+                  riskAmount={result.riskAmount}
+                  onPick={setTpFromR}
+                />
               </div>
             </div>
           ) : (
@@ -289,7 +299,7 @@ export default function App() {
               <p className="mb-2 text-xs text-slate-500">
                 Escolha o risco:retorno — preenchemos o preço pra você.
               </p>
-              <RrChips activeR={undefined} onPick={setTpFromR} />
+              <RrChips activeR={undefined} riskAmount={result.riskAmount} onPick={setTpFromR} />
             </div>
           )}
         </div>
@@ -343,14 +353,15 @@ export default function App() {
                 <>
                   <span className="text-slate-700">·</span>
                   <span>
-                    alvo{" "}
-                    <b
+                    ganha{" "}
+                    <b className="text-emerald-300">+{money(result.profitAtTp ?? NaN)}</b>{" "}
+                    <span
                       className={
-                        result.rMultipleToTp >= 1 ? "text-emerald-300" : "text-amber-300"
+                        result.rMultipleToTp >= 1 ? "text-emerald-300/70" : "text-amber-300/70"
                       }
                     >
-                      {result.rMultipleToTp.toFixed(1)}R
-                    </b>
+                      ({result.rMultipleToTp.toFixed(1)}R)
+                    </span>
                   </span>
                 </>
               )}
@@ -483,14 +494,17 @@ export default function App() {
 
 /* ---------- UI primitives ---------- */
 
-/** Atalhos de risco:retorno — preenchem o alvo automaticamente. */
+/** Atalhos de risco:retorno — preenchem o alvo e já mostram o ganho em $. */
 function RrChips({
   activeR,
+  riskAmount,
   onPick,
 }: {
   activeR: number | undefined;
+  riskAmount: number;
   onPick: (r: number) => void;
 }) {
+  const showGain = Number.isFinite(riskAmount) && riskAmount > 0;
   return (
     <div className="flex gap-2">
       {RR_CHIPS.map((R) => {
@@ -499,13 +513,22 @@ function RrChips({
           <button
             key={R}
             onClick={() => onPick(R)}
-            className={`flex-1 rounded-lg border py-2 text-sm font-semibold ${
+            className={`flex-1 rounded-lg border py-1.5 ${
               active
-                ? "border-emerald-500 bg-emerald-500/15 text-emerald-300"
-                : "border-slate-700 bg-slate-900 text-slate-400 hover:border-slate-600"
+                ? "border-emerald-500 bg-emerald-500/15"
+                : "border-slate-700 bg-slate-900 hover:border-slate-600"
             }`}
           >
-            {R}:1
+            <div
+              className={`text-sm font-semibold ${active ? "text-emerald-300" : "text-slate-300"}`}
+            >
+              {R}:1
+            </div>
+            {showGain && (
+              <div className={`text-[11px] ${active ? "text-emerald-300/80" : "text-slate-500"}`}>
+                +{money(R * riskAmount, 0)}
+              </div>
+            )}
           </button>
         );
       })}
