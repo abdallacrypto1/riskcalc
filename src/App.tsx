@@ -197,6 +197,22 @@ export default function App() {
     setEntryMode(mode);
   };
 
+  // Limpar: reseta o trade pro padrão (entrada/stop/alvo, ativo e alavancagem).
+  // Não mexe na banca/risco (são configurações).
+  const clearTrade = () => {
+    setAsset(null);
+    setAssetDecimals(null);
+    setEntryPrice(100);
+    setStop(98);
+    setTakeProfit(null);
+    setLeverage(1);
+    setEntryMode("single");
+    setGridFrom(100);
+    setGridTo(96);
+    setGridCount(5);
+    setGridRows(buildGrid(100, 96, 5));
+  };
+
   return (
     <div className="min-h-full text-slate-100">
       <div className="mx-auto max-w-md px-4 pb-12 pt-4">
@@ -303,7 +319,32 @@ export default function App() {
           </div>
         )}
 
-        <StepHeader n={2} label="Seu trade" />
+        <StepHeader
+          n={2}
+          label="Seu trade"
+          right={
+            <button
+              onClick={clearTrade}
+              className="ml-auto flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-slate-200"
+              title="Limpar e começar um trade novo"
+            >
+              <svg
+                className="h-3.5 w-3.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+                <path d="M3 3v5h5" />
+              </svg>
+              limpar
+            </button>
+          }
+        />
         {/* Long / Short */}
         <div className="flex gap-2">
           <BigToggle active={isLong} tone="emerald" onClick={() => flipDirection("long")}>
