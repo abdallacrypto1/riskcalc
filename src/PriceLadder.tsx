@@ -118,8 +118,7 @@ export default function PriceLadder({
   return (
     <div
       ref={ref}
-      className="relative h-[360px] w-full select-none overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40"
-      style={{ touchAction: "none" }}
+      className="relative h-[320px] w-full select-none overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40"
     >
       {/* zona de risco entre o médio e o stop */}
       <div
