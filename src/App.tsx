@@ -156,10 +156,15 @@ export default function App() {
     <div className="min-h-full text-slate-100">
       <div className="mx-auto max-w-md px-4 pb-12 pt-4">
         {/* Cabeçalho: marca + ajuda */}
-        <div className="mb-3 flex items-center justify-between">
-          <h1 className="text-base font-bold tracking-tight text-white">
-            Risk<span className="text-emerald-400">Calc</span>
-          </h1>
+        <div className="mb-3 flex items-start justify-between">
+          <div>
+            <h1 className="text-base font-bold tracking-tight text-white">
+              Risk<span className="text-emerald-400">Calc</span>
+            </h1>
+            <p className="text-[11px] text-slate-500">
+              o tamanho certo da posição, sem fazer conta
+            </p>
+          </div>
           <button
             onClick={() => setHelpOpen(true)}
             className="flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-900 px-3 py-1.5 text-sm text-slate-300 hover:border-emerald-500 hover:text-emerald-300"
