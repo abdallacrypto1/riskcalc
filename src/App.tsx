@@ -37,6 +37,7 @@ export default function App() {
   const [stop, setStop] = useLocalStorage("rc.stop", 98);
   const [takeProfit, setTakeProfit] = useLocalStorage<number | null>("rc.tp", null);
   const [asset, setAsset] = useLocalStorage<string | null>("rc.asset", null);
+  const [guidesShown, setGuidesShown] = useLocalStorage("rc.guides", true);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
@@ -234,9 +235,13 @@ export default function App() {
           </span>
           <span className="text-slate-500">{settingsOpen ? "fechar" : "✎"}</span>
         </button>
-        <p className="mt-1 px-1 text-[11px] text-slate-500">
-          Aqui você define quanto cada stop pode te custar
-        </p>
+        {guidesShown && (
+          <Guide
+            className="mt-1"
+            text="Aqui você define quanto cada stop pode te custar"
+            onDismiss={() => setGuidesShown(false)}
+          />
+        )}
 
         {settingsOpen && (
           <div className="mt-2 space-y-4 rounded-xl border border-slate-800 bg-slate-900/60 p-4">
@@ -271,6 +276,19 @@ export default function App() {
                   />
                 </div>
               </div>
+            </div>
+            <div className="flex items-center justify-between border-t border-slate-800 pt-3">
+              <Label>Dicas de uso na tela</Label>
+              <button
+                onClick={() => setGuidesShown((g) => !g)}
+                className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${
+                  guidesShown
+                    ? "border-emerald-500 bg-emerald-500/15 text-emerald-300"
+                    : "border-slate-700 bg-slate-900 text-slate-400"
+                }`}
+              >
+                {guidesShown ? "ativadas" : "desativadas"}
+              </button>
             </div>
           </div>
         )}
@@ -363,10 +381,14 @@ export default function App() {
         </div>
 
         {/* O herói: gráfico arrastável */}
-        <p className="mb-1.5 mt-4 px-1 text-[11px] text-slate-500">
-          Aqui você visualiza entrada, stop e alvo (opcional)
-        </p>
-        <div>
+        <div className="mt-4">
+          {guidesShown && (
+            <Guide
+              className="mb-1.5"
+              text="Aqui você visualiza entrada, stop e alvo (opcional)"
+              onDismiss={() => setGuidesShown(false)}
+            />
+          )}
           <PriceLadder
             entries={entries}
             avg={avg}
@@ -384,10 +406,16 @@ export default function App() {
         </div>
 
         {/* Resposta gigante */}
-        <p className="mb-1.5 mt-4 px-1 text-center text-[11px] text-slate-500">
-          Aqui o RiskCalc dimensiona o tamanho da posição
-        </p>
-        {result.ok ? (
+        <div className="mt-4">
+          {guidesShown && (
+            <Guide
+              center
+              className="mb-1.5"
+              text="Aqui o RiskCalc dimensiona o tamanho da posição"
+              onDismiss={() => setGuidesShown(false)}
+            />
+          )}
+          {result.ok ? (
           <div className="rounded-2xl border border-emerald-500/40 bg-gradient-to-b from-emerald-500/15 to-slate-900/30 p-5 text-center">
             <p className="text-sm font-semibold uppercase tracking-wider text-emerald-300">
               {isLong ? "Compre" : "Venda"}
@@ -438,7 +466,8 @@ export default function App() {
           <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 text-center text-sm text-amber-300">
             {result.errors[0] ?? "Preencha os valores."}
           </div>
-        )}
+          )}
+        </div>
 
         {/* Opções avançadas */}
         <button
@@ -599,6 +628,33 @@ function RrChips({
           </button>
         );
       })}
+    </div>
+  );
+}
+
+/** Legenda-guia dispensável (cinza claro + × pra ocultar todas). */
+function Guide({
+  text,
+  onDismiss,
+  center,
+  className = "",
+}: {
+  text: string;
+  onDismiss: () => void;
+  center?: boolean;
+  className?: string;
+}) {
+  return (
+    <div className={`flex items-start gap-1 ${center ? "justify-center" : ""} ${className}`}>
+      <p className="px-1 text-[11px] leading-snug text-slate-500">{text}</p>
+      <button
+        onClick={onDismiss}
+        className="shrink-0 text-[13px] leading-none text-slate-600 hover:text-slate-300"
+        aria-label="Ocultar dicas"
+        title="Ocultar dicas"
+      >
+        ×
+      </button>
     </div>
   );
 }
