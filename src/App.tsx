@@ -317,6 +317,9 @@ export default function App() {
             onStop={setStop}
             onTakeProfit={(p) => setTakeProfit(+p.toFixed(4))}
           />
+          <p className="mt-1.5 text-center text-[11px] text-slate-600">
+            Simulação visual da sua operação — não é o gráfico de preço do mercado
+          </p>
         </div>
 
         {/* Resposta gigante */}
