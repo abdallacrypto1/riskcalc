@@ -15,6 +15,7 @@ interface Props {
   takeProfit?: number; // alvo opcional (arrastável)
   liquidation?: number; // preço de liquidação (mostra quando perto do stop)
   liquidationDanger?: boolean; // true = liquida ANTES do stop (vermelho)
+  decimals?: number; // casas decimais do ativo (formatação consistente)
   direction: Direction;
   onEntry?: (price: number) => void; // arrastar a entrada / médio
   onStop: (price: number) => void; // arrastar o stop
@@ -35,6 +36,7 @@ export default function PriceLadder({
   takeProfit,
   liquidation,
   liquidationDanger,
+  decimals,
   direction,
   onEntry,
   onStop,
@@ -87,7 +89,7 @@ export default function PriceLadder({
   };
 
   const emit = (kind: Handle, raw: number) => {
-    const p = +raw.toFixed(4);
+    const p = +raw.toFixed(decimals ?? 4);
     if (kind === "stop") onStop(p);
     else if (kind === "entry") onEntry?.(p);
     else onTakeProfit?.(p);
@@ -152,7 +154,7 @@ export default function PriceLadder({
             <div className="border-t border-slate-600" />
             {entries.length <= 4 && (
               <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-slate-400">
-                {price(e.price)}
+                {price(e.price, decimals)}
               </span>
             )}
           </div>
@@ -168,7 +170,7 @@ export default function PriceLadder({
           pill="bg-emerald-500 text-white"
           handlers={onTakeProfit ? handlers("tp") : undefined}
         >
-          Alvo {price(takeProfit!)}
+          Alvo {price(takeProfit!, decimals)}
         </DragLine>
       )}
 
@@ -181,7 +183,7 @@ export default function PriceLadder({
         pill="bg-sky-500 text-white"
         handlers={onEntry ? handlers("entry") : undefined}
       >
-        {multipleEntries ? "Médio" : "Entrada"} {price(avg)}
+        {multipleEntries ? "Médio" : "Entrada"} {price(avg, decimals)}
       </DragLine>
 
       {/* STOP — arrastável */}
@@ -193,7 +195,7 @@ export default function PriceLadder({
         pill="bg-rose-500 text-white"
         handlers={handlers("stop")}
       >
-        Stop {price(stop)} · {pct(stopDistPct)}
+        Stop {price(stop, decimals)} · {pct(stopDistPct)}
       </DragLine>
 
       {/* LIQUIDAÇÃO — informativa, não arrastável. À esquerda p/ não brigar com
@@ -211,7 +213,7 @@ export default function PriceLadder({
               liquidationDanger ? "bg-red-600 text-white" : "bg-amber-500 text-black"
             }`}
           >
-            ⚠ Liq. {price(liquidation!)}
+            ⚠ Liq. {price(liquidation!, decimals)}
           </div>
         </div>
       )}

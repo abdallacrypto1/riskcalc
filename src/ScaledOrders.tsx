@@ -31,6 +31,7 @@ interface Props {
   totalNotional: number;
   margin: number;
   leverage: number;
+  decimals?: number;
   onFrom: (v: number) => void;
   onTo: (v: number) => void;
   onCount: (v: number) => void;
@@ -48,6 +49,7 @@ export default function ScaledOrders({
   totalNotional,
   margin,
   leverage,
+  decimals,
   onFrom,
   onTo,
   onCount,
@@ -141,7 +143,7 @@ export default function ScaledOrders({
       <div className="space-y-1.5 rounded-xl bg-slate-900/60 p-3 text-sm">
         <Row
           label={`Preço médio (${direction === "long" ? "compra" : "venda"})`}
-          value={price(avg)}
+          value={price(avg, decimals)}
           strong
         />
         <Row label="Custo total" value={money(totalNotional)} />

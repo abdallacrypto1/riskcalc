@@ -7,16 +7,20 @@ export const money = (n: number, max = 2) =>
       })
     : "—";
 
-/** Preço — mostra até 4 casas decimais (cripto), nunca mais que isso. */
-export const price = (n: number) =>
-  Number.isFinite(n)
-    ? n.toLocaleString("en-US", {
-        style: "currency",
-        currency: "USD",
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 4,
-      })
-    : "—";
+/** Preço. Com `decimals` definido, fixa nessa precisão (a do ativo, via tickSize).
+ *  Sem ele (modo manual), mostra de 2 a 4 casas. */
+export const price = (n: number, decimals?: number) => {
+  if (!Number.isFinite(n)) return "—";
+  const opts =
+    decimals != null
+      ? { minimumFractionDigits: decimals, maximumFractionDigits: decimals }
+      : { minimumFractionDigits: 2, maximumFractionDigits: 4 };
+  return n.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    ...opts,
+  });
+};
 
 export const num = (n: number, max = 6) =>
   Number.isFinite(n)

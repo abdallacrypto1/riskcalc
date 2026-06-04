@@ -5,6 +5,15 @@ interface Asset {
   base: string; // ex: BTC
   symbol: string; // ex: BTCUSDT
   price: number;
+  decimals: number; // casas decimais do preço (via tickSize)
+}
+
+/** Quantas casas decimais o tickSize implica (ex: "0.01000000" -> 2). */
+function decimalsFromTick(tick?: string): number {
+  if (!tick) return 2;
+  const s = tick.replace(/0+$/, "");
+  const i = s.indexOf(".");
+  return i === -1 ? 0 : Math.min(8, s.length - i - 1);
 }
 
 // Cache em nível de módulo — busca a lista uma vez por sessão.
@@ -19,6 +28,7 @@ interface SymbolInfo {
   quoteAsset: string;
   status: string;
   isSpotTradingAllowed: boolean;
+  filters: { filterType: string; tickSize?: string }[];
 }
 
 // Cruza o exchangeInfo (que traz o `status`) com os preços, e mantém SÓ pares
@@ -51,6 +61,9 @@ async function loadAssets(): Promise<Asset[]> {
             base: s.baseAsset,
             symbol: s.symbol,
             price: priceMap.get(s.symbol) ?? 0,
+            decimals: decimalsFromTick(
+              s.filters.find((f) => f.filterType === "PRICE_FILTER")?.tickSize,
+            ),
           }))
           .filter((a) => a.price > 0);
         assetCache = list;
@@ -72,7 +85,7 @@ async function fetchPrice(symbol: string): Promise<number> {
 
 interface Props {
   selected: string | null; // símbolo selecionado (ex: BTCUSDT)
-  onPrice: (price: number, symbol: string) => void;
+  onPrice: (price: number, symbol: string, decimals?: number) => void;
 }
 
 export default function AssetPicker({ selected, onPrice }: Props) {
@@ -134,11 +147,11 @@ export default function AssetPicker({ selected, onPrice }: Props) {
   const pick = async (a: Asset) => {
     setQuery("");
     setOpen(false);
-    onPrice(a.price, a.symbol); // preço do cache, imediato
+    onPrice(a.price, a.symbol, a.decimals); // preço do cache, imediato
     setBusy(true);
     try {
       const p = await fetchPrice(a.symbol);
-      if (p > 0) onPrice(p, a.symbol); // atualiza pro preço exato
+      if (p > 0) onPrice(p, a.symbol, a.decimals); // atualiza pro preço exato
     } catch {
       /* mantém o do cache */
     }
@@ -147,10 +160,11 @@ export default function AssetPicker({ selected, onPrice }: Props) {
 
   const refresh = async () => {
     if (!selected) return;
+    const dp = assets.find((x) => x.symbol === selected)?.decimals;
     setBusy(true);
     try {
       const p = await fetchPrice(selected);
-      if (p > 0) onPrice(p, selected);
+      if (p > 0) onPrice(p, selected, dp);
     } catch {
       /* ignora */
     }
@@ -240,7 +254,7 @@ export default function AssetPicker({ selected, onPrice }: Props) {
                 className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm hover:bg-slate-800"
               >
                 <span className="font-semibold text-slate-200">{a.base}</span>
-                <span className="text-slate-400">{price(a.price)}</span>
+                <span className="text-slate-400">{price(a.price, a.decimals)}</span>
               </button>
             ))}
           {!loading && !error && (

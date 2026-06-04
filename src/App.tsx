@@ -38,6 +38,10 @@ export default function App() {
   const [stop, setStop] = useLocalStorage("rc.stop", 98);
   const [takeProfit, setTakeProfit] = useLocalStorage<number | null>("rc.tp", null);
   const [asset, setAsset] = useLocalStorage<string | null>("rc.asset", null);
+  const [assetDecimals, setAssetDecimals] = useLocalStorage<number | null>(
+    "rc.assetDp",
+    null,
+  );
   const [guidesShown, setGuidesShown] = useLocalStorage("rc.guides", true);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -72,6 +76,11 @@ export default function App() {
 
   const isLong = direction === "long";
 
+  // Precisão dos preços: a do ativo (via tickSize) ou 4 casas no modo manual.
+  const dp = assetDecimals ?? 4;
+  const roundP = (x: number) => +x.toFixed(dp);
+  const fmtP = assetDecimals ?? undefined; // p/ formatar (undefined = padrão 2-4)
+
   // Alavancagem máxima SEGURA (liquida depois do stop). É só um aviso — NÃO
   // trava. O usuário pode passar disso e ver a liquidação subir no gráfico.
   const safeMaxLev = Number.isFinite(result.maxSafeLeverage)
@@ -89,8 +98,8 @@ export default function App() {
   // Mantém o stop sempre do lado certo do preço médio.
   const ensureStopSide = (a: number, dir: Direction, s: number) => {
     if (!(a > 0)) return s;
-    if (dir === "long" && s >= a) return +(a * 0.98).toFixed(4);
-    if (dir === "short" && s <= a) return +(a * 1.02).toFixed(4);
+    if (dir === "long" && s >= a) return roundP(a * 0.98);
+    if (dir === "short" && s <= a) return roundP(a * 1.02);
     return s;
   };
   const adjustStop = (a: number, dir: Direction = direction) =>
@@ -98,7 +107,7 @@ export default function App() {
 
   const flipDirection = (dir: Direction) => {
     setDirection(dir);
-    setStop((s) => ensureStopSide(avg, dir, +(2 * avg - s).toFixed(4)));
+    setStop((s) => ensureStopSide(avg, dir, roundP(2 * avg - s)));
   };
 
   const editSingleEntry = (price: number) => {
@@ -111,7 +120,7 @@ export default function App() {
     const dist = Math.abs(avg - stop);
     if (!(avg > 0) || !(dist > 0)) return;
     const tp = isLong ? avg + R * dist : avg - R * dist;
-    setTakeProfit(+tp.toFixed(4));
+    setTakeProfit(roundP(tp));
   };
 
   // Arrastar a linha de entrada/médio no gráfico.
@@ -122,41 +131,45 @@ export default function App() {
     }
     // escalonado: desloca a grade inteira mantendo os ratios
     const delta = target - avg;
-    setGridRows(gridRows.map((r) => ({ ...r, price: +(r.price + delta).toFixed(4) })));
-    setGridFrom((f) => +(f + delta).toFixed(4));
-    setGridTo((t) => +(t + delta).toFixed(4));
+    setGridRows(gridRows.map((r) => ({ ...r, price: roundP(r.price + delta) })));
+    setGridFrom((f) => roundP(f + delta));
+    setGridTo((t) => roundP(t + delta));
     adjustStop(target);
   };
 
   // Preenche a entrada com o preço ao vivo do ativo. O stop já vem em 2% da
   // entrada (abaixo p/ compra, acima p/ venda). O alvo, se houver, é recalculado
   // preservando o R (ex: 3:1 continua 3:1 na nova distância).
-  const applyAssetPrice = (p: number, symbol: string) => {
+  const applyAssetPrice = (p: number, symbol: string, decimals?: number) => {
     setAsset(symbol);
+    if (decimals != null) setAssetDecimals(decimals);
     if (!(p > 0)) return;
-    const entry = +p.toFixed(4);
+    // arredonda na precisão do ativo (entrada, stop e alvo ficam consistentes)
+    const d = decimals ?? assetDecimals ?? 4;
+    const r = (x: number) => +x.toFixed(d);
+    const entry = r(p);
     const oldR = result.rMultipleToTp;
 
     // entrada
     if (scaled && avg > 0) {
       const ratio = entry / avg;
-      setGridRows(gridRows.map((r) => ({ ...r, price: +(r.price * ratio).toFixed(4) })));
-      setGridFrom((f) => +(f * ratio).toFixed(4));
-      setGridTo((t) => +(t * ratio).toFixed(4));
+      setGridRows(gridRows.map((row) => ({ ...row, price: r(row.price * ratio) })));
+      setGridFrom((f) => r(f * ratio));
+      setGridTo((t) => r(t * ratio));
     } else if (!scaled) {
       setEntryPrice(entry);
     }
 
     // stop padrão: 2% da entrada conforme a direção
     const factor = isLong ? 1 - DEFAULT_STOP_PCT / 100 : 1 + DEFAULT_STOP_PCT / 100;
-    const newStop = +(entry * factor).toFixed(4);
+    const newStop = r(entry * factor);
     setStop(newStop);
 
     // alvo: preserva o R recalculando pela nova distância
     if (takeProfit && takeProfit > 0 && oldR && Number.isFinite(oldR)) {
       const dist = Math.abs(entry - newStop);
       const tp = isLong ? entry + oldR * dist : entry - oldR * dist;
-      setTakeProfit(+tp.toFixed(4));
+      setTakeProfit(r(tp));
     }
   };
 
@@ -311,9 +324,15 @@ export default function App() {
           <div className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-3">
             <Label>{scaled ? "Preço médio" : "Entrada"}</Label>
             {scaled ? (
-              <p className="text-xl font-bold text-sky-300">{price(avg)}</p>
+              <p className="text-xl font-bold text-sky-300">{price(avg, fmtP)}</p>
             ) : (
-              <Editable value={entryPrice} onChange={editSingleEntry} tone="sky" price />
+              <Editable
+                value={entryPrice}
+                onChange={editSingleEntry}
+                tone="sky"
+                price
+                decimals={fmtP}
+              />
             )}
           </div>
           <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-3">
@@ -323,6 +342,7 @@ export default function App() {
               onChange={(v) => setStop(ensureStopSide(avg, direction, v))}
               tone="rose"
               price
+              decimals={fmtP}
             />
           </div>
         </div>
@@ -343,7 +363,13 @@ export default function App() {
                       </span>
                     )}
                   </Label>
-                  <Editable value={takeProfit} onChange={setTakeProfit} tone="emerald" price />
+                  <Editable
+                    value={takeProfit}
+                    onChange={setTakeProfit}
+                    tone="emerald"
+                    price
+                    decimals={fmtP}
+                  />
                   {result.profitAtTp !== undefined && (
                     <p className="mt-0.5 text-sm text-slate-400">
                       ganha{" "}
@@ -394,10 +420,11 @@ export default function App() {
             takeProfit={takeProfit ?? undefined}
             liquidation={showLiq ? result.liquidationPrice : undefined}
             liquidationDanger={liqBeforeStop}
+            decimals={fmtP}
             direction={direction}
             onEntry={dragEntry}
             onStop={setStop}
-            onTakeProfit={(p) => setTakeProfit(+p.toFixed(4))}
+            onTakeProfit={(p) => setTakeProfit(roundP(p))}
           />
           <p className="mt-1.5 text-center text-[11px] text-slate-600">
             Simulação visual da sua operação — não é o gráfico de preço do mercado
@@ -442,7 +469,7 @@ export default function App() {
                   <span className={liqBeforeStop ? "text-rose-300" : undefined}>
                     {liqBeforeStop && "⚠ "}liq{" "}
                     <b className={liqBeforeStop ? "text-rose-300" : "text-amber-300"}>
-                      {price(result.liquidationPrice)}
+                      {price(result.liquidationPrice, fmtP)}
                     </b>
                   </span>
                 </>
@@ -514,6 +541,7 @@ export default function App() {
                 totalNotional={result.totalNotional}
                 margin={result.requiredMargin}
                 leverage={leverage}
+                decimals={fmtP}
                 onFrom={(v) => {
                   setGridFrom(v);
                   rebuildGrid(v, gridTo, gridCount);
@@ -568,8 +596,8 @@ export default function App() {
                 className={`mt-2 text-xs ${liqBeforeStop ? "font-semibold text-rose-300" : "text-slate-500"}`}
               >
                 {liqBeforeStop
-                  ? `⚠ Você seria LIQUIDADO em ${price(result.liquidationPrice)} — antes do stop. Perde tudo antes do plano funcionar.`
-                  : `Liquidação em ${price(result.liquidationPrice)} (depois do stop ✓).`}
+                  ? `⚠ Você seria LIQUIDADO em ${price(result.liquidationPrice, fmtP)} — antes do stop. Perde tudo antes do plano funcionar.`
+                  : `Liquidação em ${price(result.liquidationPrice, fmtP)} (depois do stop ✓).`}
               </p>
               <p className="mt-1 text-[11px] leading-snug text-slate-600">
                 Estimativa simplificada (≈ 1 ÷ alavancagem). Não considera taxas nem a
@@ -729,6 +757,7 @@ function Editable({
   suffix,
   big,
   price: priceMode,
+  decimals,
 }: {
   value: number;
   onChange: (v: number) => void;
@@ -736,9 +765,11 @@ function Editable({
   suffix?: string;
   big?: boolean;
   price?: boolean;
+  decimals?: number;
 }) {
   const [editing, setEditing] = useState(false);
   const [buf, setBuf] = useState("");
+  const dp = decimals ?? 4; // casas pra arredondar/editar
 
   const color =
     tone === "sky"
@@ -752,7 +783,7 @@ function Editable({
 
   const commit = () => {
     const n = parseFloat(buf.replace(",", "."));
-    if (Number.isFinite(n)) onChange(+n.toFixed(4)); // nunca mais que 4 casas
+    if (Number.isFinite(n)) onChange(+n.toFixed(dp)); // arredonda na precisão do ativo
     setEditing(false);
   };
 
@@ -775,7 +806,7 @@ function Editable({
   // Toque (mobile) e foco (Tab no teclado) entram em edição.
   // No mobile, tocar num <button> não dispara onFocus — por isso os dois.
   const start = () => {
-    setBuf(String(+value.toFixed(4))); // sem casas extras de ponto flutuante
+    setBuf(String(+value.toFixed(dp))); // sem casas extras de ponto flutuante
     setEditing(true);
   };
 
@@ -785,7 +816,9 @@ function Editable({
       onFocus={start}
       className={`flex w-full items-center gap-1.5 rounded-lg px-1 py-1 text-left font-bold ${size} ${color}`}
     >
-      <span>{suffix ? `${value}${suffix}` : priceMode ? price(value) : money(value)}</span>
+      <span>
+        {suffix ? `${value}${suffix}` : priceMode ? price(value, decimals) : money(value)}
+      </span>
       {priceMode && (
         <svg
           className="h-3.5 w-3.5 shrink-0 text-slate-500"
