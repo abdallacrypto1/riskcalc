@@ -218,6 +218,7 @@ export default function App() {
           </button>
         </div>
 
+        <StepHeader n={1} label="Sua conta" className="mt-1" />
         {/* Configurações (banca + risco) escondidas atrás de um toque */}
         <button
           onClick={() => setSettingsOpen((o) => !o)}
@@ -289,8 +290,9 @@ export default function App() {
           </div>
         )}
 
+        <StepHeader n={2} label="Seu trade" />
         {/* Long / Short */}
-        <div className="mt-4 flex gap-2">
+        <div className="flex gap-2">
           <BigToggle active={isLong} tone="emerald" onClick={() => flipDirection("long")}>
             ▲ Comprar
           </BigToggle>
@@ -402,8 +404,9 @@ export default function App() {
           </p>
         </div>
 
+        <StepHeader n={3} label="Resultado" />
         {/* Resposta gigante */}
-        <div className="mt-4">
+        <div>
           {guidesShown && (
             <Guide
               center
@@ -657,6 +660,28 @@ function Guide({
       >
         ×
       </button>
+    </div>
+  );
+}
+
+/** Cabeçalho de etapa: círculo numerado + rótulo, pra guiar o fluxo 1→2→3. */
+function StepHeader({
+  n,
+  label,
+  className = "mt-5",
+}: {
+  n: number;
+  label: string;
+  className?: string;
+}) {
+  return (
+    <div className={`mb-2 flex items-center gap-2 ${className}`}>
+      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-[11px] font-bold text-emerald-300">
+        {n}
+      </span>
+      <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+        {label}
+      </span>
     </div>
   );
 }
