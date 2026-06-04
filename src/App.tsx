@@ -218,7 +218,7 @@ export default function App() {
           </button>
         </div>
 
-        <StepHeader n={1} label="Sua conta" className="mt-1" />
+        <StepHeader n={1} label="Sua conta" className="mt-5" />
         {/* Configurações (banca + risco) escondidas atrás de um toque */}
         <button
           onClick={() => setSettingsOpen((o) => !o)}
