@@ -10,6 +10,7 @@ import { useLocalStorage } from "./lib/useLocalStorage";
 import PriceLadder from "./PriceLadder";
 import ScaledOrders, { buildGrid, type GridRow } from "./ScaledOrders";
 import HelpSheet from "./HelpSheet";
+import AssetPicker from "./AssetPicker";
 
 const RISK_CHIPS = [1, 2, 3];
 const RR_CHIPS = [1, 2, 3, 5]; // atalhos de risco:retorno (R)
@@ -34,6 +35,7 @@ export default function App() {
   );
   const [stop, setStop] = useLocalStorage("rc.stop", 98);
   const [takeProfit, setTakeProfit] = useLocalStorage<number | null>("rc.tp", null);
+  const [asset, setAsset] = useLocalStorage<string | null>("rc.asset", null);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
@@ -126,6 +128,29 @@ export default function App() {
     setGridFrom((f) => +(f + delta).toFixed(4));
     setGridTo((t) => +(t + delta).toFixed(4));
     adjustStop(target);
+  };
+
+  // Preenche a entrada com o preço ao vivo do ativo, escalando stop, alvo e a
+  // grade proporcionalmente (preserva a % do stop e o R do alvo).
+  const applyAssetPrice = (p: number, symbol: string) => {
+    setAsset(symbol);
+    if (!(p > 0)) return;
+    const ref = avg;
+    if (ref > 0) {
+      const ratio = p / ref;
+      if (scaled) {
+        setGridRows(gridRows.map((r) => ({ ...r, price: +(r.price * ratio).toFixed(4) })));
+        setGridFrom((f) => +(f * ratio).toFixed(4));
+        setGridTo((t) => +(t * ratio).toFixed(4));
+      } else {
+        setEntryPrice(+p.toFixed(4));
+      }
+      setStop((s) => +(s * ratio).toFixed(4));
+      setTakeProfit((tp) => (tp && tp > 0 ? +(tp * ratio).toFixed(4) : tp));
+    } else {
+      if (!scaled) setEntryPrice(+p.toFixed(4));
+      setStop(+(p * (isLong ? 0.98 : 1.02)).toFixed(4));
+    }
   };
 
   // --- Grade escalonada ---
@@ -245,6 +270,11 @@ export default function App() {
           <BigToggle active={!isLong} tone="rose" onClick={() => flipDirection("short")}>
             ▼ Vender
           </BigToggle>
+        </div>
+
+        {/* Ativo com preço ao vivo (opcional) */}
+        <div className="mt-3">
+          <AssetPicker selected={asset} onPrice={applyAssetPrice} />
         </div>
 
         {/* Entrada + Stop precisos (toque pra digitar) */}
