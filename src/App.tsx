@@ -14,6 +14,7 @@ import AssetPicker from "./AssetPicker";
 
 const RISK_CHIPS = [1, 2, 3];
 const RR_CHIPS = [1, 2, 3, 5]; // atalhos de risco:retorno (R)
+const DEFAULT_STOP_PCT = 2; // stop padrão ao selecionar um ativo (% da entrada)
 type EntryMode = "single" | "grid";
 
 export default function App() {
@@ -130,26 +131,35 @@ export default function App() {
     adjustStop(target);
   };
 
-  // Preenche a entrada com o preço ao vivo do ativo, escalando stop, alvo e a
-  // grade proporcionalmente (preserva a % do stop e o R do alvo).
+  // Preenche a entrada com o preço ao vivo do ativo. O stop já vem em 2% da
+  // entrada (abaixo p/ compra, acima p/ venda). O alvo, se houver, é recalculado
+  // preservando o R (ex: 3:1 continua 3:1 na nova distância).
   const applyAssetPrice = (p: number, symbol: string) => {
     setAsset(symbol);
     if (!(p > 0)) return;
-    const ref = avg;
-    if (ref > 0) {
-      const ratio = p / ref;
-      if (scaled) {
-        setGridRows(gridRows.map((r) => ({ ...r, price: +(r.price * ratio).toFixed(4) })));
-        setGridFrom((f) => +(f * ratio).toFixed(4));
-        setGridTo((t) => +(t * ratio).toFixed(4));
-      } else {
-        setEntryPrice(+p.toFixed(4));
-      }
-      setStop((s) => +(s * ratio).toFixed(4));
-      setTakeProfit((tp) => (tp && tp > 0 ? +(tp * ratio).toFixed(4) : tp));
-    } else {
-      if (!scaled) setEntryPrice(+p.toFixed(4));
-      setStop(+(p * (isLong ? 0.98 : 1.02)).toFixed(4));
+    const entry = +p.toFixed(4);
+    const oldR = result.rMultipleToTp;
+
+    // entrada
+    if (scaled && avg > 0) {
+      const ratio = entry / avg;
+      setGridRows(gridRows.map((r) => ({ ...r, price: +(r.price * ratio).toFixed(4) })));
+      setGridFrom((f) => +(f * ratio).toFixed(4));
+      setGridTo((t) => +(t * ratio).toFixed(4));
+    } else if (!scaled) {
+      setEntryPrice(entry);
+    }
+
+    // stop padrão: 2% da entrada conforme a direção
+    const factor = isLong ? 1 - DEFAULT_STOP_PCT / 100 : 1 + DEFAULT_STOP_PCT / 100;
+    const newStop = +(entry * factor).toFixed(4);
+    setStop(newStop);
+
+    // alvo: preserva o R recalculando pela nova distância
+    if (takeProfit && takeProfit > 0 && oldR && Number.isFinite(oldR)) {
+      const dist = Math.abs(entry - newStop);
+      const tp = isLong ? entry + oldR * dist : entry - oldR * dist;
+      setTakeProfit(+tp.toFixed(4));
     }
   };
 
