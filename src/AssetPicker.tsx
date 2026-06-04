@@ -13,23 +13,50 @@ let cachePromise: Promise<Asset[]> | null = null;
 
 const POPULAR = ["BTC", "ETH", "SOL", "BNB", "XRP", "DOGE", "ADA"];
 
+interface SymbolInfo {
+  symbol: string;
+  baseAsset: string;
+  quoteAsset: string;
+  status: string;
+  isSpotTradingAllowed: boolean;
+}
+
+// Cruza o exchangeInfo (que traz o `status`) com os preços, e mantém SÓ pares
+// USDT com `status: TRADING` no spot. Isso elimina tokens alavancados
+// (BTCUP/BTCDOWN) e moedas deslistadas (ex: BTCST), deixando só a cripto real.
 async function loadAssets(): Promise<Asset[]> {
   if (assetCache) return assetCache;
   if (!cachePromise) {
-    cachePromise = fetch("https://api.binance.com/api/v3/ticker/price")
-      .then((r) => r.json())
-      .then((arr: { symbol: string; price: string }[]) => {
-        const list = arr
-          .filter((x) => x.symbol.endsWith("USDT"))
-          .map((x) => ({
-            base: x.symbol.slice(0, -4),
-            symbol: x.symbol,
-            price: parseFloat(x.price),
+    cachePromise = Promise.all([
+      fetch(
+        "https://api.binance.com/api/v3/exchangeInfo?showPermissionSets=false",
+      ).then((r) => r.json()),
+      fetch("https://api.binance.com/api/v3/ticker/price").then((r) => r.json()),
+    ]).then(
+      ([info, prices]: [
+        { symbols: SymbolInfo[] },
+        { symbol: string; price: string }[],
+      ]) => {
+        const priceMap = new Map(
+          prices.map((p) => [p.symbol, parseFloat(p.price)]),
+        );
+        const list = info.symbols
+          .filter(
+            (s) =>
+              s.quoteAsset === "USDT" &&
+              s.status === "TRADING" &&
+              s.isSpotTradingAllowed,
+          )
+          .map((s) => ({
+            base: s.baseAsset,
+            symbol: s.symbol,
+            price: priceMap.get(s.symbol) ?? 0,
           }))
-          .filter((a) => a.price > 0 && /^[A-Z0-9]+$/.test(a.base));
+          .filter((a) => a.price > 0);
         assetCache = list;
         return list;
-      });
+      },
+    );
   }
   return cachePromise;
 }
