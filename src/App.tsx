@@ -534,12 +534,17 @@ function Editable({
     );
   }
 
+  // Toque (mobile) e foco (Tab no teclado) entram em edição.
+  // No mobile, tocar num <button> não dispara onFocus — por isso os dois.
+  const start = () => {
+    setBuf(String(+value.toFixed(4))); // sem casas extras de ponto flutuante
+    setEditing(true);
+  };
+
   return (
     <button
-      onFocus={() => {
-        setBuf(String(+value.toFixed(4))); // sem casas extras de ponto flutuante
-        setEditing(true);
-      }}
+      onClick={start}
+      onFocus={start}
       className={`w-full rounded-lg px-1 py-1 text-left font-bold ${size} ${color}`}
     >
       {suffix ? `${value}${suffix}` : priceMode ? price(value) : money(value)}
