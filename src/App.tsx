@@ -422,6 +422,66 @@ export default function App() {
           )}
         </div>
 
+        {/* Opções avançadas (alavancagem) — junto das decisões do trade */}
+        <button
+          onClick={() => setOptionsOpen((o) => !o)}
+          className="mt-3 w-full rounded-xl border border-dashed border-slate-700 py-2.5 text-sm text-slate-400 hover:border-slate-600 hover:text-slate-300"
+        >
+          {optionsOpen ? "− menos opções" : "+ mais opções"}
+        </button>
+
+        {optionsOpen && (
+          <div className="mt-2 space-y-5 rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+            <div>
+              <div className="mb-1.5 flex items-baseline justify-between">
+                <Label>Alavancagem</Label>
+                {Number.isFinite(safeMaxLev) && (
+                  <span className="text-xs text-slate-500">
+                    seguro até <b className="text-slate-300">{safeMaxLev}x</b>
+                  </span>
+                )}
+              </div>
+              <Editable value={leverage} onChange={(v) => setLeverage(clampLev(v))} suffix="x" />
+              {/* botões rápidos — acima do seguro ficam em vermelho, mas clicáveis */}
+              <div className="mt-2 flex gap-2">
+                {[1, 3, 5, 10, 20].map((L) => {
+                  const unsafe = Number.isFinite(safeMaxLev) && L > safeMaxLev;
+                  const active = leverage === L;
+                  return (
+                    <button
+                      key={L}
+                      onClick={() => setLeverage(L)}
+                      className={`flex-1 rounded-lg border py-1.5 text-sm font-semibold ${
+                        active
+                          ? unsafe
+                            ? "border-rose-500 bg-rose-500/15 text-rose-300"
+                            : "border-emerald-500 bg-emerald-500/15 text-emerald-300"
+                          : unsafe
+                            ? "border-rose-500/40 bg-slate-900 text-rose-400/80"
+                            : "border-slate-700 bg-slate-900 text-slate-400"
+                      }`}
+                    >
+                      {L}x
+                    </button>
+                  );
+                })}
+              </div>
+              <p
+                className={`mt-2 text-xs ${liqBeforeStop ? "font-semibold text-rose-300" : "text-slate-500"}`}
+              >
+                {liqBeforeStop
+                  ? `⚠ Você seria LIQUIDADO em ${price(result.liquidationPrice, fmtP)} — antes do stop. Perde tudo antes do plano funcionar.`
+                  : `Liquidação em ${price(result.liquidationPrice, fmtP)} (depois do stop ✓).`}
+              </p>
+              <p className="mt-1 text-[11px] leading-snug text-slate-600">
+                Estimativa simplificada (≈ 1 ÷ alavancagem). Não considera taxas nem a
+                margem de manutenção da corretora — a liquidação real costuma vir um
+                pouco antes. Use o limite como teto, não como meta.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Entrada + Stop precisos (toque pra digitar) */}
         <div className="mt-3 grid grid-cols-2 gap-2">
           <div className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-3">
@@ -538,66 +598,6 @@ export default function App() {
             Simulação visual da sua operação — não é o gráfico de preço do mercado
           </p>
         </div>
-
-        {/* Opções avançadas (alavancagem) — antes do resultado */}
-        <button
-          onClick={() => setOptionsOpen((o) => !o)}
-          className="mt-4 w-full rounded-xl border border-dashed border-slate-700 py-2.5 text-sm text-slate-400 hover:border-slate-600 hover:text-slate-300"
-        >
-          {optionsOpen ? "− menos opções" : "+ mais opções"}
-        </button>
-
-        {optionsOpen && (
-          <div className="mt-2 space-y-5 rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-            <div>
-              <div className="mb-1.5 flex items-baseline justify-between">
-                <Label>Alavancagem</Label>
-                {Number.isFinite(safeMaxLev) && (
-                  <span className="text-xs text-slate-500">
-                    seguro até <b className="text-slate-300">{safeMaxLev}x</b>
-                  </span>
-                )}
-              </div>
-              <Editable value={leverage} onChange={(v) => setLeverage(clampLev(v))} suffix="x" />
-              {/* botões rápidos — acima do seguro ficam em vermelho, mas clicáveis */}
-              <div className="mt-2 flex gap-2">
-                {[1, 3, 5, 10, 20].map((L) => {
-                  const unsafe = Number.isFinite(safeMaxLev) && L > safeMaxLev;
-                  const active = leverage === L;
-                  return (
-                    <button
-                      key={L}
-                      onClick={() => setLeverage(L)}
-                      className={`flex-1 rounded-lg border py-1.5 text-sm font-semibold ${
-                        active
-                          ? unsafe
-                            ? "border-rose-500 bg-rose-500/15 text-rose-300"
-                            : "border-emerald-500 bg-emerald-500/15 text-emerald-300"
-                          : unsafe
-                            ? "border-rose-500/40 bg-slate-900 text-rose-400/80"
-                            : "border-slate-700 bg-slate-900 text-slate-400"
-                      }`}
-                    >
-                      {L}x
-                    </button>
-                  );
-                })}
-              </div>
-              <p
-                className={`mt-2 text-xs ${liqBeforeStop ? "font-semibold text-rose-300" : "text-slate-500"}`}
-              >
-                {liqBeforeStop
-                  ? `⚠ Você seria LIQUIDADO em ${price(result.liquidationPrice, fmtP)} — antes do stop. Perde tudo antes do plano funcionar.`
-                  : `Liquidação em ${price(result.liquidationPrice, fmtP)} (depois do stop ✓).`}
-              </p>
-              <p className="mt-1 text-[11px] leading-snug text-slate-600">
-                Estimativa simplificada (≈ 1 ÷ alavancagem). Não considera taxas nem a
-                margem de manutenção da corretora — a liquidação real costuma vir um
-                pouco antes. Use o limite como teto, não como meta.
-              </p>
-            </div>
-          </div>
-        )}
 
         <StepHeader n={3} label="Resultado" />
         {/* Resposta gigante */}
