@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   calcRisk,
   weightedAvgEntry,
@@ -15,6 +15,7 @@ import AssetPicker from "./AssetPicker";
 const RISK_CHIPS = [1, 2, 3];
 const RR_CHIPS = [1, 2, 3, 5]; // atalhos de risco:retorno (R)
 const DEFAULT_STOP_PCT = 2; // stop padrão ao selecionar um ativo (% da entrada)
+const MAX_LEVERAGE = 125; // teto sano de alavancagem (não trava no "seguro")
 type EntryMode = "single" | "grid";
 
 export default function App() {
@@ -71,20 +72,15 @@ export default function App() {
 
   const isLong = direction === "long";
 
-  // Alavancagem máxima segura (liquidar depois do stop) e trava.
+  // Alavancagem máxima SEGURA (liquida depois do stop). É só um aviso — NÃO
+  // trava. O usuário pode passar disso e ver a liquidação subir no gráfico.
   const safeMaxLev = Number.isFinite(result.maxSafeLeverage)
     ? Math.max(1, Math.floor(result.maxSafeLeverage * 100) / 100)
     : Infinity;
-  const clampLev = (v: number) =>
-    Math.max(1, Number.isFinite(safeMaxLev) ? Math.min(v, safeMaxLev) : v);
-  const atMaxLev = leverage >= safeMaxLev - 1e-9;
+  const clampLev = (v: number) => Math.max(1, Math.min(v, MAX_LEVERAGE));
+  const liqBeforeStop = result.liquidatedBeforeStop; // liquida ANTES do stop?
 
-  // Se o stop se aproxima e a alavancagem atual passa a liquidar antes, trava.
-  useEffect(() => {
-    if (Number.isFinite(safeMaxLev) && leverage > safeMaxLev) setLeverage(safeMaxLev);
-  }, [safeMaxLev]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Linha de liquidação: só mostra quando está perto do stop (relevante).
+  // Linha de liquidação: mostra quando está perto/dentro da zona do stop.
   const liqFrac = leverage > 0 ? 1 / leverage : Infinity;
   const stopFrac = avg > 0 ? Math.abs(avg - stop) / avg : Infinity;
   const showLiq =
@@ -395,6 +391,7 @@ export default function App() {
             stop={stop}
             takeProfit={takeProfit ?? undefined}
             liquidation={showLiq ? result.liquidationPrice : undefined}
+            liquidationDanger={liqBeforeStop}
             direction={direction}
             onEntry={dragEntry}
             onStop={setStop}
@@ -439,8 +436,11 @@ export default function App() {
               {leverage > 1 && Number.isFinite(result.liquidationPrice) && (
                 <>
                   <span className="text-slate-700">·</span>
-                  <span>
-                    liq <b className="text-amber-300">{price(result.liquidationPrice)}</b>
+                  <span className={liqBeforeStop ? "text-rose-300" : undefined}>
+                    {liqBeforeStop && "⚠ "}liq{" "}
+                    <b className={liqBeforeStop ? "text-rose-300" : "text-amber-300"}>
+                      {price(result.liquidationPrice)}
+                    </b>
                   </span>
                 </>
               )}
@@ -532,25 +532,27 @@ export default function App() {
                 <Label>Alavancagem</Label>
                 {Number.isFinite(safeMaxLev) && (
                   <span className="text-xs text-slate-500">
-                    máx <b className="text-slate-300">{safeMaxLev}x</b> pelo stop
+                    seguro até <b className="text-slate-300">{safeMaxLev}x</b>
                   </span>
                 )}
               </div>
               <Editable value={leverage} onChange={(v) => setLeverage(clampLev(v))} suffix="x" />
-              {/* botões rápidos limitados pela trava */}
+              {/* botões rápidos — acima do seguro ficam em vermelho, mas clicáveis */}
               <div className="mt-2 flex gap-2">
                 {[1, 3, 5, 10, 20].map((L) => {
-                  const blocked = Number.isFinite(safeMaxLev) && L > safeMaxLev;
+                  const unsafe = Number.isFinite(safeMaxLev) && L > safeMaxLev;
+                  const active = leverage === L;
                   return (
                     <button
                       key={L}
-                      disabled={blocked}
                       onClick={() => setLeverage(L)}
                       className={`flex-1 rounded-lg border py-1.5 text-sm font-semibold ${
-                        leverage === L
-                          ? "border-emerald-500 bg-emerald-500/15 text-emerald-300"
-                          : blocked
-                            ? "cursor-not-allowed border-slate-800 bg-slate-900/40 text-slate-700"
+                        active
+                          ? unsafe
+                            ? "border-rose-500 bg-rose-500/15 text-rose-300"
+                            : "border-emerald-500 bg-emerald-500/15 text-emerald-300"
+                          : unsafe
+                            ? "border-rose-500/40 bg-slate-900 text-rose-400/80"
                             : "border-slate-700 bg-slate-900 text-slate-400"
                       }`}
                     >
@@ -560,10 +562,10 @@ export default function App() {
                 })}
               </div>
               <p
-                className={`mt-2 text-xs ${atMaxLev ? "text-amber-300" : "text-slate-500"}`}
+                className={`mt-2 text-xs ${liqBeforeStop ? "font-semibold text-rose-300" : "text-slate-500"}`}
               >
-                {atMaxLev
-                  ? "⚠ No limite: acima disso você seria liquidado antes do stop."
+                {liqBeforeStop
+                  ? `⚠ Você seria LIQUIDADO em ${price(result.liquidationPrice)} — antes do stop. Perde tudo antes do plano funcionar.`
                   : `Liquidação em ${price(result.liquidationPrice)} (depois do stop ✓).`}
               </p>
               <p className="mt-1 text-[11px] leading-snug text-slate-600">

@@ -14,6 +14,7 @@ interface Props {
   stop: number; // preço do stop (arrastável)
   takeProfit?: number; // alvo opcional (arrastável)
   liquidation?: number; // preço de liquidação (mostra quando perto do stop)
+  liquidationDanger?: boolean; // true = liquida ANTES do stop (vermelho)
   direction: Direction;
   onEntry?: (price: number) => void; // arrastar a entrada / médio
   onStop: (price: number) => void; // arrastar o stop
@@ -33,6 +34,7 @@ export default function PriceLadder({
   stop,
   takeProfit,
   liquidation,
+  liquidationDanger,
   direction,
   onEntry,
   onStop,
@@ -194,15 +196,22 @@ export default function PriceLadder({
         Stop {price(stop)} · {pct(stopDistPct)}
       </DragLine>
 
-      {/* LIQUIDAÇÃO — informativa, não arrastável */}
+      {/* LIQUIDAÇÃO — informativa, não arrastável. À esquerda p/ não brigar com
+          o stop (à direita). Vermelha quando liquida ANTES do stop. */}
       {hasLiq && (
         <div
           className="pointer-events-none absolute inset-x-0 z-10"
           style={{ top: topPct(liquidation!), transform: "translateY(-50%)" }}
         >
-          <div className="border-t-2 border-dotted border-amber-400/80" />
-          <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-1 rounded-lg bg-amber-500 px-2 py-1 text-xs font-semibold text-black shadow-lg">
-            ⚠ Liquidação {price(liquidation!)}
+          <div
+            className={`border-t-2 border-dotted ${liquidationDanger ? "border-red-500" : "border-amber-400/80"}`}
+          />
+          <div
+            className={`absolute left-2 top-1/2 flex -translate-y-1/2 items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold shadow-lg ${
+              liquidationDanger ? "bg-red-600 text-white" : "bg-amber-500 text-black"
+            }`}
+          >
+            ⚠ Liq. {price(liquidation!)}
           </div>
         </div>
       )}
